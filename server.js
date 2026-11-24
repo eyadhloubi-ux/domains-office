@@ -239,6 +239,15 @@ if (process.env.ADMIN_USERNAME) {
   }
 }
 
+// مسؤول النظام الافتراضي: يُنشأ تلقائياً عند التشغيل إذا لم يوجد أي مسؤول ولم تُضبط متغيرات المسؤول.
+// تُحفظ هنا بصمة مشفّرة (scrypt) لكلمة المرور فقط، لا كلمة المرور نفسها.
+const BOOT_ADMIN = { username: 'eyad', salt: '169160bf4e80cba0c0e077aa', hash: 'cb5931307721af3a014b3ce21f1c9b4fbeed38e64820958821108fd9f93e5e42' };
+if (!adminExists() && !process.env.ADMIN_USERNAME) {
+  const cur = db.users[BOOT_ADMIN.username];
+  db.users[BOOT_ADMIN.username] = cleanUser({ ...(cur || {}), uid: cur ? cur.uid : 'u' + rid() + rid(), salt: BOOT_ADMIN.salt, hash: BOOT_ADMIN.hash, role: 'admin', active: true, floors: FLOOR_IDS.slice(), t: cur ? cur.t : Date.now() });
+  save(); console.log('Bootstrap admin ready: ' + BOOT_ADMIN.username);
+}
+
 /* ---------------- الموارد البشرية والمالية والمهام ---------------- */
 db.hr = db.hr || {}; db.fin = db.fin || {}; db.tasks = db.tasks || {};
 FLOOR_IDS.forEach(f => { db.hr[f] = db.hr[f] || []; db.fin[f] = db.fin[f] || { cap: 0, capNote: '', cats: BCATS.map(c => ({ id: c[0], n: c[1], sal: !!c[2] })), rows: [] }; });
