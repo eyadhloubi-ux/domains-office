@@ -24,7 +24,7 @@ if (process.env.TURN_URL) {
 /* ---------------- التخزين ---------------- */
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const FILE = path.join(DATA_DIR, 'office.json');
-const { FLOORS, SLOTS } = require('./public/floors.js');
+const { FLOORS, SLOTS, BCATS } = require('./public/floors.js');
 const FLOOR_IDS = FLOORS.map(f => f.id);
 let db = { profiles: {}, pairs: {}, meetings: {}, archive: {}, minutes: [], boards: {}, users: {}, tokens: {} };
 try { db = { ...db, ...JSON.parse(fs.readFileSync(FILE, 'utf8')) }; } catch (e) { /* أول تشغيل */ }
@@ -47,7 +47,7 @@ for (const f of FLOORS) {
   db.archive[f.id] = db.archive[f.id] || [];
   SLOTS.forEach((slot, i) => {
     const id = f.id + '.' + slot;
-    const title = slot === 'general' ? 'اللوحة العامة' : f.pods[i - 1];
+    const title = slot === 'general' ? 'اللوحة العامة' : f.tracks[i - 1];
     const b = db.boards[id];
     if (!b) db.boards[id] = { id, title, items: [], updatedAt: Date.now() };
     else { b.title = title; migrateBoard(b); }
@@ -77,7 +77,7 @@ function checkPw(user, pw) {
 /* ---------------- أدوات ---------------- */
 const str = (v, n = 300) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
 const pairKey = (a, b) => 'p' + crypto.createHash('sha1').update([a, b].sort().join('|')).digest('hex').slice(0, 16);
-const getPair = key => (db.pairs[key] = db.pairs[key] || { agreements: [], tasks: [], files: [], msgs: [] });
+const getPair = (key, a, b) => { const p = db.pairs[key] = db.pairs[key] || { agreements: [], tasks: [], files: [], msgs: [] }; if (a && b && !p.users) p.users = [a, b]; return p; };
 const pairDoc = p => ({ agreements: p.agreements, tasks: p.tasks, files: p.files });
 const BOTS = {
   'bot-ahmad': { name: 'أحمد (تجريبي)', role: 'منسّق مسار التدريب', persona: 'منسّق مسار التدريب في DOMAINS، عملي ومنظّم ويحب الجداول والمواعيد الواضحة' },
@@ -207,61 +207,137 @@ function applyWb(b, op, uid) {
   return null;
 }
 
-/* ---------------- جلسات غرفة الاجتماعات ---------------- */
-// تبدأ جلسة جديدة عندما يدخل أول شخص غرفة فارغة، وتُؤرشف تلقائياً عندما يغادرها آخر شخص.
+/* ---------------- الصلاحيات ---------------- */
+// role: admin | user · floors: الطوابق المسموحة · perms: { hr, finance, boards } كل منها none | view | edit
+const PERM_KEYS = ['hr', 'finance', 'boards'], LEVELS = ['none', 'view', 'edit'];
+const userEntry = uid => Object.entries(db.users).find(([, x]) => x.uid === uid) || null;
+const userOf = uid => { const e = userEntry(uid); return e ? e[1] : null; };
+const isAdmin = uid => { const u = userOf(uid); return !!(u && u.role === 'admin'); };
+const floorsOf = uid => { const u = userOf(uid); if (!u) return []; return u.role === 'admin' ? FLOOR_IDS.slice() : (u.floors || []).filter(validFloor); };
+const canFloor = (uid, f) => floorsOf(uid).includes(f);
+const perm = (uid, k) => { const u = userOf(uid); if (!u) return 'none'; if (u.role === 'admin') return 'edit'; return LEVELS.includes((u.perms || {})[k]) ? u.perms[k] : (k === 'boards' ? 'edit' : 'none'); };
+const permsOf = uid => { const o = {}; PERM_KEYS.forEach(k => o[k] = perm(uid, k)); return o; };
+const meInfo = uid => { const e = userEntry(uid); return { uid, username: e ? e[0] : '', name: e ? e[1].name || '' : '', role: e ? e[1].role || 'user' : 'user', floors: floorsOf(uid), perms: permsOf(uid) }; };
+const adminExists = () => Object.values(db.users).some(u => u.role === 'admin');
+function cleanUser(u) {
+  if (!u.role) u.role = 'user';
+  if (!Array.isArray(u.floors)) u.floors = ['f3'];
+  u.floors = u.floors.filter(validFloor);
+  u.perms = u.perms || {}; PERM_KEYS.forEach(k => { if (!LEVELS.includes(u.perms[k])) u.perms[k] = k === 'boards' ? 'edit' : 'none'; });
+  if (u.active === undefined) u.active = true;
+  return u;
+}
+Object.values(db.users).forEach(cleanUser);
+// إنشاء مسؤول النظام من متغيرات البيئة (أو ترقية حساب موجود)
+if (process.env.ADMIN_USERNAME) {
+  const u = normUser(process.env.ADMIN_USERNAME);
+  if (USER_RE.test(u)) {
+    const cur = db.users[u];
+    if (cur) { cur.role = 'admin'; cur.active = true; if (process.env.ADMIN_PASSWORD) { cur.salt = rid() + rid(); cur.hash = hashPw(process.env.ADMIN_PASSWORD, cur.salt); } }
+    else if (process.env.ADMIN_PASSWORD) { const salt = rid() + rid(); db.users[u] = cleanUser({ uid: 'u' + rid() + rid(), salt, hash: hashPw(process.env.ADMIN_PASSWORD, salt), role: 'admin', floors: FLOOR_IDS.slice(), t: Date.now() }); }
+    save();
+  }
+}
+
+/* ---------------- الموارد البشرية والمالية والمهام ---------------- */
+db.hr = db.hr || {}; db.fin = db.fin || {}; db.tasks = db.tasks || {};
+FLOOR_IDS.forEach(f => { db.hr[f] = db.hr[f] || []; db.fin[f] = db.fin[f] || { cap: 0, capNote: '', cats: BCATS.map(c => ({ id: c[0], n: c[1], sal: !!c[2] })), rows: [] }; });
+const money = v => { v = +v; return Number.isFinite(v) ? Math.max(0, Math.min(1e10, Math.round(v * 100) / 100)) : 0; };
+function cleanHr(list) {
+  const out = (Array.isArray(list) ? list : []).slice(0, 400).map(x => ({ id: ID_RE.test(x.id || '') ? x.id : rid(), title: str(x.title, 80), name: str(x.name, 60), parent: ID_RE.test(x.parent || '') ? x.parent : null, salary: money(x.salary), vacant: !!x.vacant, start: /^\d{4}-\d{2}-\d{2}$/.test(x.start || '') ? x.start : '' })).filter(x => x.title);
+  const ids = new Set(out.map(x => x.id)); out.forEach(x => { if (!ids.has(x.parent) || x.parent === x.id) x.parent = null; }); return out;
+}
+function cleanFin(f) {
+  const cats = (Array.isArray(f.cats) ? f.cats : []).slice(0, 20).map(c => ({ id: /^[a-z0-9]{2,24}$/.test(c.id || '') ? c.id : 'c' + rid(), n: str(c.n, 40), sal: !!c.sal })).filter(c => c.n);
+  const cid = new Set(cats.map(c => c.id));
+  const rows = (Array.isArray(f.rows) ? f.rows : []).slice(0, 120).filter(r => /^\d{4}-\d{2}$/.test(r.m || '')).map(r => { const v = {}; Object.keys(r.v || {}).forEach(k => { if (cid.has(k)) v[k] = money(r.v[k]); }); return { m: r.m, v, note: str(r.note, 200) }; });
+  const seen = new Set(); return { cap: money(f.cap), capNote: str(f.capNote, 80), cats, rows: rows.filter(r => !seen.has(r.m) && seen.add(r.m)) };
+}
+const TSTAT = ['plan', 'doing', 'done'];
+function cleanTasks(list, uid) {
+  return (Array.isArray(list) ? list : []).slice(0, 200).map(t => ({ id: ID_RE.test(t.id || '') ? t.id : rid(), title: str(t.title, 200), status: TSTAT.includes(t.status) ? t.status : 'plan',
+    due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : '', t: +t.t || Date.now(), by: str(t.by || uid, 64), src: str(t.src, 120),
+    subs: (Array.isArray(t.subs) ? t.subs : []).slice(0, 50).map(s => ({ id: ID_RE.test(s.id || '') ? s.id : rid(), text: str(s.text, 200), done: !!s.done })).filter(s => s.text),
+    upds: (Array.isArray(t.upds) ? t.upds : []).slice(-50).map(u => ({ text: str(u.text, 600), by: str(u.by, 64), t: +u.t || Date.now() })).filter(u => u.text) })).filter(t => t.title);
+}
+function addTask(uid, task) { const l = db.tasks[uid] = db.tasks[uid] || []; l.unshift(cleanTasks([task], task.by)[0]); if (l.length > 200) l.length = 200; save(); io.emit('tasks', { uid, list: l }); }
+const sendTo = (pred, ev, data) => { for (const s of io.sockets.sockets.values()) if (s.data.uid && pred(s.data.uid)) s.emit(ev, data); };
+
+/* ---------------- غرفة الاجتماعات ---------------- */
+// وضعان: «حديث عادي» لا يُحفظ ويُمحى بخروج الجميع، و«اجتماع رسمي» يبدأ بزر ويُحفظ في الأرشيف (مع محضر إن طُلب).
 const inMeet = {}; FLOORS.forEach(f => inMeet[f.id] = new Set());
 const isMeetZone = (x, y) => x > 1026 && x < 1388 && y > 12 && y < 414;
-const archiveSummary = a => ({ sid: a.sid, startedAt: a.startedAt, endedAt: a.endedAt, attendees: a.attendees, count: a.msgs.length });
-function archiveSession(floor) {
-  const m = db.meetings[floor];
-  if (m.msgs.length) {
-    const arch = db.archive[floor];
-    arch.unshift({ sid: m.sid || rid(), startedAt: m.startedAt, endedAt: Date.now(), msgs: m.msgs, attendees: [...new Set(m.msgs.map(x => x.name))] });
-    if (arch.length > 80) arch.length = 80;
-  }
-  db.meetings[floor] = { sid: null, startedAt: 0, msgs: [] }; save();
-  io.emit('meeting:state', { floor, ...db.meetings[floor] });
-  io.emit('meeting:archive', { floor, list: db.archive[floor].map(archiveSummary) });
+const archiveSummary = a => ({ sid: a.sid, title: a.title || '', startedAt: a.startedAt, endedAt: a.endedAt, attendees: a.attendees, count: a.msgs.length, startedBy: a.startedBy || '' });
+const blankMeet = () => ({ sid: rid(), mode: 'chat', title: '', startedAt: Date.now(), msgs: [], startedBy: '' });
+function emitMeet(floor) { io.emit('meeting:state', { floor, ...db.meetings[floor] }); }
+function saveMeeting(floor) {
+  const m = db.meetings[floor]; if (m.mode !== 'meeting') return null;
+  const arch = db.archive[floor];
+  const rec = { sid: m.sid, title: m.title, startedAt: m.startedAt, endedAt: Date.now(), msgs: m.msgs, startedBy: m.startedBy, attendees: [...new Set([...(m.att || []), ...m.msgs.map(x => x.name)])] };
+  arch.unshift(rec); if (arch.length > 100) arch.length = 100; save();
+  io.emit('meeting:archive', { floor, list: arch.map(archiveSummary) }); return rec;
 }
-function startSession(floor) {
-  if (db.meetings[floor].msgs.length) archiveSession(floor);
-  db.meetings[floor] = { sid: rid(), startedAt: Date.now(), msgs: [] }; save();
-  io.emit('meeting:state', { floor, ...db.meetings[floor] });
-}
+function resetRoom(floor) { db.meetings[floor] = blankMeet(); save(); emitMeet(floor); }
 function trackMeeting(sockId, floor, x, y) {
   for (const f of FLOOR_IDS) {
     const set = inMeet[f], inside = f === floor && isMeetZone(x, y), had = set.has(sockId);
-    if (inside && !had) { set.add(sockId); if (set.size === 1) startSession(f); }
-    else if (!inside && had) { set.delete(sockId); if (set.size === 0) archiveSession(f); }
+    if (inside && !had) {
+      set.add(sockId); const m = db.meetings[f];
+      if (set.size === 1 && m.mode !== 'meeting') resetRoom(f);
+      const o = online.get(sockId); if (o && db.meetings[f].mode === 'meeting') { const mm = db.meetings[f]; mm.att = [...new Set([...(mm.att || []), o.name])]; }
+    } else if (!inside && had) {
+      set.delete(sockId);
+      if (set.size === 0) { if (db.meetings[f].mode === 'meeting') saveMeeting(f); resetRoom(f); }
+    }
   }
+}
+for (const f of FLOOR_IDS) { const m = db.meetings[f]; if (!m || !m.mode) db.meetings[f] = blankMeet(); }
+
+/* ---------------- محاضر الاجتماعات ---------------- */
+async function makeMinutes(floor, rec, byUid) {
+  const fl = FLOORS.find(f => f.id === floor), l = rec.msgs;
+  const attendees = rec.attendees && rec.attendees.length ? rec.attendees : [...new Set(l.map(m => m.name))];
+  const res = await claude({ fast: false, max: 1600, system: 'تكتب محاضر اجتماعات دقيقة بالعربية الفصحى. أعد JSON فقط.', messages: [{ role: 'user', content:
+    `اكتب محضر اجتماع «${rec.title || 'اجتماع'}» لفريق ${fl.name} من النقاش التالي، دون إضافة ما لم يُذكر.\nالحاضرون: ${attendees.join('، ')}\nالنقاش:\n${l.map(m => `${m.name}: ${m.text}`).join('\n')}\n\nالشكل: {"title":"عنوان قصير","summary":"ملخص في جملتين","decisions":["..."],"actions":[{"who":"اسم أحد الحاضرين كما ورد","what":"المهمة","due":"YYYY-MM-DD إن ذُكر موعد واضح وإلا فارغ"}]}` }] });
+  const j = parseJSON(res.content.map(c => c.text || '').join(''));
+  const doc = { id: rid(), title: str(j.title || rec.title || 'محضر اجتماع', 120), summary: str(j.summary, 800), decisions: (j.decisions || []).slice(0, 12).map(x => str(x)),
+    actions: (j.actions || []).slice(0, 15).map(a => ({ who: str(a.who, 40), what: str(a.what), due: str(a.due, 60) })), attendees, floor, sid: rec.sid, t: Date.now(), by: byUid };
+  db.minutes.push(doc); if (db.minutes.length > 300) db.minutes.shift();
+  let n = 0;
+  for (const a of doc.actions) { // كل مهمة من المحضر تذهب إلى قائمة مهام صاحبها على مكتبه
+    const id = findIdByName(a.who); if (!id || BOTS[id]) continue;
+    addTask(id, { title: a.what, status: 'plan', due: /^\d{4}-\d{2}-\d{2}$/.test(a.due) ? a.due : '', by: byUid, src: 'من محضر: ' + doc.title, t: Date.now() }); n++;
+  }
+  save(); io.emit('minutes', db.minutes.slice(-150).reverse()); return { doc, n };
 }
 
 io.on('connection', socket => {
   const authed = () => !!socket.data.uid;
+  const admin = () => authed() && isAdmin(socket.data.uid);
 
   let attempts = 0;
-  socket.on('auth:register', ({ username, password, code, legacy } = {}, ack) => {
+  // إعداد أول مسؤول نظام (يعمل مرة واحدة فقط، حين لا يوجد أي مسؤول)
+  socket.on('auth:setup', ({ username, password, code } = {}, ack) => {
     if (typeof ack !== 'function') return;
-    if (++attempts > 20) return ack({ error: 'محاولات كثيرة، أعد تحميل الصفحة' });
-    if (ACCESS_CODE && str(code, 80) !== ACCESS_CODE) return ack({ error: 'رمز الفريق غير صحيح' });
+    if (adminExists()) return ack({ error: 'تم إعداد مسؤول النظام مسبقاً' });
+    if (ACCESS_CODE && str(code, 80) !== ACCESS_CODE) return ack({ error: 'رمز الإعداد غير صحيح' });
     const u = normUser(username); if (!USER_RE.test(u)) return ack({ error: 'اسم المستخدم من 3 إلى 30 حرفاً أو رقماً، دون مسافات' });
-    if (String(password || '').length < 6) return ack({ error: 'كلمة المرور 6 أحرف على الأقل' });
-    if (db.users[u]) return ack({ error: 'اسم المستخدم مستخدم من قبل، اختر غيره' });
-    legacy = str(legacy, 64); const taken = new Set(Object.values(db.users).map(x => x.uid));
-    const uid = /^[a-zA-Z0-9_-]{8,64}$/.test(legacy) && db.profiles[legacy] && !taken.has(legacy) ? legacy : 'u' + rid() + rid();
-    const salt = rid() + rid(); db.users[u] = { uid, salt, hash: hashPw(password, salt), t: Date.now() };
-    ack({ token: newToken(uid) });
+    if (String(password || '').length < 8) return ack({ error: 'كلمة مرور المسؤول 8 أحرف على الأقل' });
+    const salt = rid() + rid(); const prev = db.users[u];
+    db.users[u] = cleanUser({ uid: prev ? prev.uid : 'u' + rid() + rid(), salt, hash: hashPw(password, salt), role: 'admin', floors: FLOOR_IDS.slice(), t: Date.now() });
+    save(); ack({ token: newToken(db.users[u].uid) });
   });
   socket.on('auth:login', ({ username, password } = {}, ack) => {
     if (typeof ack !== 'function') return;
     if (++attempts > 20) return ack({ error: 'محاولات كثيرة، أعد تحميل الصفحة' });
     const user = db.users[normUser(username)];
     if (!user || !checkPw(user, password)) return ack({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+    if (user.active === false) return ack({ error: 'هذا الحساب موقوف. راجع مسؤول النظام' });
     ack({ token: newToken(user.uid) });
   });
   socket.on('auth:password', ({ old, password } = {}, ack) => {
     if (typeof ack !== 'function' || !socket.data.uid) return;
-    const entry = Object.entries(db.users).find(([, x]) => x.uid === socket.data.uid); if (!entry) return ack({ error: 'لا يوجد حساب' });
+    const entry = userEntry(socket.data.uid); if (!entry) return ack({ error: 'لا يوجد حساب' });
     if (!checkPw(entry[1], old)) return ack({ error: 'كلمة المرور الحالية غير صحيحة' });
     if (String(password || '').length < 6) return ack({ error: 'كلمة المرور 6 أحرف على الأقل' });
     entry[1].salt = rid() + rid(); entry[1].hash = hashPw(password, entry[1].salt); save(); ack({ ok: true });
@@ -270,20 +346,92 @@ io.on('connection', socket => {
 
   socket.on('hello', ({ token } = {}, ack) => {
     if (typeof ack !== 'function') return;
-    const tk = db.tokens[str(token, 64)];
-    if (!tk) return ack({ ok: false, needLogin: true, needCode: !!ACCESS_CODE });
+    const tk = db.tokens[str(token, 64)], u = tk && userOf(tk.uid);
+    if (!tk || !u || u.active === false) return ack({ ok: false, needLogin: true, setup: !adminExists(), needCode: !!ACCESS_CODE });
     const uid = tk.uid; socket.data.uid = uid;
-    const uname = (Object.entries(db.users).find(([, x]) => x.uid === uid) || [''])[0];
+    const fl = floorsOf(uid);
     const peers = [...online.entries()].map(([id, o]) => pub(id, o));
-    const archive = {}; FLOOR_IDS.forEach(f => archive[f] = db.archive[f].map(archiveSummary));
-    ack({ ok: true, uid, username: uname, profile: db.profiles[uid] || null, profiles: db.profiles, peers,
-      boards: db.boards, meetings: db.meetings, archive, minutes: db.minutes.slice(-100).reverse(), ice: ICE, ai: !!AI_KEY, voiceMode: process.env.VOICE_MODE === 'relay' ? 'relay' : 'auto', self: socket.id });
+    const archive = {}; fl.forEach(f => archive[f] = db.archive[f].map(archiveSummary));
+    const boards = {}; Object.values(db.boards).forEach(b => { if (fl.includes(b.id.split('.')[0]) && perm(uid, 'boards') !== 'none') boards[b.id] = b; });
+    const meetings = {}; fl.forEach(f => meetings[f] = db.meetings[f]);
+    ack({ ok: true, me: meInfo(uid), profile: db.profiles[uid] || null, profiles: db.profiles, peers, tasks: db.tasks,
+      boards, meetings, archive, minutes: db.minutes.filter(m => fl.includes(m.floor || 'f3')).slice(-150).reverse(), ice: ICE, ai: !!AI_KEY, voiceMode: process.env.VOICE_MODE === 'relay' ? 'relay' : 'auto', self: socket.id });
+  });
+
+  /* ----- إدارة المستخدمين (مسؤول النظام فقط) ----- */
+  const userList = () => Object.entries(db.users).map(([username, u]) => ({ username, uid: u.uid, role: u.role, floors: u.floors, perms: u.perms, active: u.active !== false, name: (db.profiles[u.uid] || {}).name || u.name || '', t: u.t, online: socketsOf(u.uid).length > 0 }));
+  socket.on('admin:users', (_, ack) => { if (typeof ack === 'function') ack(admin() ? userList() : null); });
+  socket.on('admin:save', (d = {}, ack) => {
+    if (typeof ack !== 'function') return; if (!admin()) return ack({ error: 'هذه الصلاحية لمسؤول النظام فقط' });
+    const u = normUser(d.username); if (!USER_RE.test(u)) return ack({ error: 'اسم المستخدم من 3 إلى 30 حرفاً أو رقماً، دون مسافات' });
+    let rec = db.users[u];
+    if (d.isNew) { if (rec) return ack({ error: 'اسم المستخدم موجود' }); if (String(d.password || '').length < 6) return ack({ error: 'كلمة المرور 6 أحرف على الأقل' }); rec = db.users[u] = { uid: 'u' + rid() + rid(), t: Date.now() }; }
+    if (!rec) return ack({ error: 'لا يوجد مستخدم بهذا الاسم' });
+    const self = rec.uid === socket.data.uid;
+    if (d.password) { if (String(d.password).length < 6) return ack({ error: 'كلمة المرور 6 أحرف على الأقل' }); rec.salt = rid() + rid(); rec.hash = hashPw(d.password, rec.salt); if (!d.isNew) Object.keys(db.tokens).forEach(t => { if (db.tokens[t].uid === rec.uid && !self) delete db.tokens[t]; }); }
+    rec.role = self ? 'admin' : (d.role === 'admin' ? 'admin' : 'user');
+    rec.floors = (Array.isArray(d.floors) ? d.floors : []).filter(validFloor);
+    rec.perms = {}; PERM_KEYS.forEach(k => rec.perms[k] = LEVELS.includes((d.perms || {})[k]) ? d.perms[k] : 'none');
+    rec.active = self ? true : d.active !== false; if (d.name) rec.name = str(d.name, 30);
+    cleanUser(rec);
+    if (!rec.active) Object.keys(db.tokens).forEach(t => { if (db.tokens[t].uid === rec.uid) delete db.tokens[t]; });
+    save();
+    for (const s of socketsOf(rec.uid)) { if (!rec.active) s.disconnect(true); else s.emit('me:update', meInfo(rec.uid)); }
+    ack({ ok: true, list: userList() });
+  });
+  socket.on('admin:delete', ({ username } = {}, ack) => {
+    if (typeof ack !== 'function') return; if (!admin()) return ack({ error: 'هذه الصلاحية لمسؤول النظام فقط' });
+    const u = normUser(username), rec = db.users[u]; if (!rec) return ack({ error: 'غير موجود' });
+    if (rec.uid === socket.data.uid) return ack({ error: 'لا يمكنك حذف حسابك' });
+    delete db.users[u]; Object.keys(db.tokens).forEach(t => { if (db.tokens[t].uid === rec.uid) delete db.tokens[t]; });
+    if (db.profiles[rec.uid]) { db.profiles[rec.uid].desk = null; io.emit('profiles', db.profiles); }
+    save(); for (const s of socketsOf(rec.uid)) s.disconnect(true); ack({ ok: true, list: userList() });
+  });
+
+  /* ----- خزانة الموارد البشرية وخزنة الملفات المالية ----- */
+  socket.on('hr:get', ({ floor } = {}, ack) => {
+    if (typeof ack !== 'function' || !authed() || !canFloor(socket.data.uid, floor) || perm(socket.data.uid, 'hr') === 'none') return typeof ack === 'function' && ack(null);
+    const seeSal = perm(socket.data.uid, 'finance') !== 'none' || perm(socket.data.uid, 'hr') === 'edit';
+    ack({ list: db.hr[floor].map(x => seeSal ? x : { ...x, salary: null }), seeSal });
+  });
+  socket.on('hr:save', ({ floor, list } = {}, ack) => {
+    if (typeof ack !== 'function') return; if (!authed() || !canFloor(socket.data.uid, floor) || perm(socket.data.uid, 'hr') !== 'edit') return ack({ error: 'لا تملك صلاحية التعديل' });
+    db.hr[floor] = cleanHr(list); save(); ack({ ok: true, list: db.hr[floor] });
+    sendTo(u => u !== socket.data.uid && canFloor(u, floor) && perm(u, 'hr') !== 'none', 'hr:changed', { floor });
+  });
+  socket.on('fin:get', ({ floor } = {}, ack) => {
+    if (typeof ack !== 'function') return; if (!authed() || !canFloor(socket.data.uid, floor) || perm(socket.data.uid, 'finance') === 'none') return ack(null);
+    const sf = db.hr[floor].filter(x => !x.vacant).reduce((a, x) => a + (x.salary || 0), 0);
+    ack({ fin: db.fin[floor], hrSalaries: sf });
+  });
+  socket.on('fin:save', ({ floor, fin } = {}, ack) => {
+    if (typeof ack !== 'function') return; if (!authed() || !canFloor(socket.data.uid, floor) || perm(socket.data.uid, 'finance') !== 'edit') return ack({ error: 'لا تملك صلاحية التعديل' });
+    db.fin[floor] = cleanFin(fin || {}); save(); ack({ ok: true, fin: db.fin[floor] });
+    sendTo(u => u !== socket.data.uid && canFloor(u, floor) && perm(u, 'finance') !== 'none', 'fin:changed', { floor });
+  });
+
+  /* ----- مهام كل موظف على مكتبه ----- */
+  socket.on('tasks:save', ({ uid, list } = {}, ack) => {
+    if (!authed()) return; uid = str(uid, 64);
+    if (uid !== socket.data.uid && !isAdmin(socket.data.uid)) return typeof ack === 'function' && ack({ error: 'تعديل المهام لصاحب المكتب أو مسؤول النظام' });
+    db.tasks[uid] = cleanTasks(list, socket.data.uid); save(); io.emit('tasks', { uid, list: db.tasks[uid] }); if (typeof ack === 'function') ack({ ok: true });
+  });
+  socket.on('tasks:update', ({ uid, id, text } = {}, ack) => { // أي زميل يستطيع إضافة مستجد على مهمة زميله
+    if (!authed()) return; const t = (db.tasks[str(uid, 64)] || []).find(x => x.id === id); text = str(text, 600);
+    if (!t || !text) return; t.upds.push({ text, by: socket.data.uid, t: Date.now() }); if (t.upds.length > 50) t.upds.shift();
+    save(); io.emit('tasks', { uid, list: db.tasks[uid] }); if (typeof ack === 'function') ack({ ok: true });
+  });
+
+  /* ----- سجل المحادثات ----- */
+  socket.on('pair:list', (_, ack) => {
+    if (typeof ack !== 'function' || !authed()) return; const me = socket.data.uid;
+    ack(Object.entries(db.pairs).filter(([, p]) => p.users && p.users.includes(me) && p.msgs.length).map(([key, p]) => { const other = p.users.find(u => u !== me) || me; const last = p.msgs[p.msgs.length - 1]; return { key, other, name: nameOf(other), last: { text: last.text.slice(0, 120), t: last.t, by: last.by }, count: p.msgs.length }; }).sort((a, b) => b.last.t - a.last.t).slice(0, 100));
   });
 
   socket.on('profile:save', p => {
     if (!authed() || !p) return;
     const look = p.look || {};
-    const prof = { name: str(p.name, 30), role: str(p.role, 40), desk: /^f[1-9]:(m1|[a-d][1-4])$/.test(p.desk || '') ? p.desk : null, t: Date.now(),
+    const prof = { name: str(p.name, 30), role: str(p.role, 40), desk: /^f[1-9]:(m1|[a-d][1-4])$/.test(p.desk || '') && canFloor(socket.data.uid, p.desk.split(':')[0]) ? p.desk : null, t: Date.now(),
       look: { gender: look.gender === 'f' ? 'f' : 'm', shirt: str(look.shirt, 9), hair: str(look.hair, 9), skin: str(look.skin, 9), style: str(look.style, 10) } };
     if (!prof.name) return;
     if (prof.desk) for (const [id, o] of Object.entries(db.profiles)) if (id !== socket.data.uid && o.desk === prof.desk) prof.desk = null;
@@ -296,7 +444,7 @@ io.on('connection', socket => {
     const o = online.get(socket.id) || {};
     Object.assign(o, { uid: socket.data.uid, name: prof.name || str(s.name, 30), look: prof.look || {},
       x: Math.max(0, Math.min(2000, +s.x || 0)), y: Math.max(0, Math.min(1200, +s.y || 0)), status: ['free', 'busy', 'focus'].includes(s.status) ? s.status : 'free',
-      moving: !!s.moving, floor: validFloor(s.floor) ? s.floor : 'f3', face: ['up', 'down', 'left', 'right'].includes(s.face) ? s.face : 'down', say: s.say ? { text: str(s.say.text, 120), t: Date.now() } : null });
+      moving: !!s.moving, floor: canFloor(socket.data.uid, s.floor) ? s.floor : (floorsOf(socket.data.uid)[0] || 'f3'), face: ['up', 'down', 'left', 'right'].includes(s.face) ? s.face : 'down', say: s.say ? { text: str(s.say.text, 120), t: Date.now() } : null });
     const first = !online.has(socket.id); online.set(socket.id, o);
     trackMeeting(socket.id, o.floor, o.x, o.y);
     if (first) socket.broadcast.emit('peer:join', pub(socket.id, o)); else socket.broadcast.volatile.emit('pos', pub(socket.id, o));
@@ -306,14 +454,14 @@ io.on('connection', socket => {
   socket.on('pair:open', ({ other } = {}, ack) => {
     if (!authed() || typeof ack !== 'function') return;
     other = str(other, 64); if (!other || other === socket.data.uid) return ack(null);
-    const key = pairKey(socket.data.uid, other); const p = getPair(key);
+    const key = pairKey(socket.data.uid, other); const p = getPair(key, socket.data.uid, other);
     for (const r of socket.rooms) if (r.startsWith('pair:')) socket.leave(r);
     socket.join('pair:' + key); ack({ key, doc: pairDoc(p), msgs: p.msgs.slice(-80) });
   });
   socket.on('pair:close', () => { for (const r of socket.rooms) if (r.startsWith('pair:')) socket.leave(r); });
   socket.on('pair:msg', ({ other, text } = {}) => {
     if (!authed()) return; other = str(other, 64); text = str(text, 1000); if (!other || !text) return;
-    const key = pairKey(socket.data.uid, other);
+    const key = pairKey(socket.data.uid, other); getPair(key, socket.data.uid, other);
     pushPairMsg(key, { id: rid(), by: socket.data.uid, text, t: Date.now() });
     for (const s of socketsOf(other)) if (!s.rooms.has('pair:' + key)) s.emit('dm', { from: socket.data.uid, name: nameOf(socket.data.uid), text: text.slice(0, 120) });
   });
@@ -327,7 +475,7 @@ io.on('connection', socket => {
   /* ----- الزملاء التجريبيون ----- */
   socket.on('ai:bot', async ({ bot } = {}) => {
     if (!authed() || !BOTS[bot]) return;
-    const me = socket.data.uid, key = pairKey(me, bot), p = getPair(key), b = BOTS[bot];
+    const me = socket.data.uid, key = pairKey(me, bot), p = getPair(key, me, bot), b = BOTS[bot];
     const prof = db.profiles[me] || {};
     let text = '';
     try {
@@ -347,40 +495,81 @@ io.on('connection', socket => {
     socket.emit('bot:say', { bot, text: str(text, 120) });
   });
 
-  /* ----- موظفة الاستقبال نور ----- */
+  /* ----- موظفة الاستقبال نور: مرشدة ذكية تعرف سياق المستخدم وتنفّذ أفعالاً ----- */
   socket.on('ai:nour', async ({ history, context, floor } = {}, ack) => {
-    const fl = FLOORS.find(f => f.id === floor) || FLOORS.find(f => f.id === 'f3');
     if (!authed() || typeof ack !== 'function') return;
-    const hist = (Array.isArray(history) ? history : []).slice(-12).map(m => ({ by: m.me ? 'u' : 'nour', text: str(m.text, 800) })).filter(m => m.text);
-    let guide = null;
+    const uid = socket.data.uid, fl = FLOORS.find(f => f.id === floor) || FLOORS.find(f => f.id === 'f3');
+    const hist = (Array.isArray(history) ? history : []).slice(-14).map(m => ({ by: m.me ? 'u' : 'nour', text: str(m.text, 900) })).filter(m => m.text);
+    const info = meInfo(uid), prof = db.profiles[uid] || {}, myTasks = (db.tasks[uid] || []);
+    const today = new Date().toISOString().slice(0, 10);
+    const taskTxt = myTasks.length ? myTasks.slice(0, 25).map(t => `- [${({ plan: 'قيد التخطيط', doing: 'قيد التنفيذ', done: 'منجزة' })[t.status]}] ${t.title}${t.due ? ' · التسليم ' + t.due + (t.status !== 'done' && t.due < today ? ' (متأخرة)' : '') : ''}${t.subs.length ? ' · فرعية ' + t.subs.filter(s => s.done).length + '/' + t.subs.length : ''}`).join('\n') : 'لا مهام مسجّلة على مكتبه.';
+    const lastMeet = (db.archive[fl.id] || [])[0]; const lastMin = lastMeet && db.minutes.find(m => m.sid === lastMeet.sid);
+    const meetTxt = lastMeet ? `آخر اجتماع رسمي في هذا الطابق: «${lastMeet.title || 'اجتماع'}» بتاريخ ${new Date(lastMeet.startedAt).toISOString().slice(0, 10)}، الحاضرون: ${lastMeet.attendees.join('، ')}.${lastMin ? ' ملخص محضره: ' + lastMin.summary + (lastMin.actions.length ? ' المهام: ' + lastMin.actions.map(a => a.who + ': ' + a.what).join('؛ ') : '') : ' لم يُكتب له محضر بعد.'}\nأبرز ما قيل فيه: ${lastMeet.msgs.slice(-12).map(m => m.name + ': ' + m.text).join(' | ').slice(0, 1500)}` : 'لا اجتماعات رسمية مؤرشفة بعد في هذا الطابق.';
+    const actions = [];
     try {
       const text = await claudeWithTools({
-        system: `أنت «نور»، موظفة الاستقبال الافتراضية (ذكاء اصطناعي) في مبنى مجموعة سنكري القابضة الافتراضي. الزائر الآن في الطابق ${fl.n}: ${fl.name}. طوابق المبنى: ${FLOORS.map(f => f.n + ' ' + f.name).join('، ')}، والتنقل بينها بالمصعد في الاستقبال. ردّي بالعربية الفصحى بإيجاز ولطف (جملتان إلى أربع).
-مخطط هذا الطابق: الاستقبال والمصعد عند المدخل، ${fl.manager}، أربع مجموعات مكاتب (${fl.pods.join('، ')})، غرفة الاجتماعات، الاستراحة، وغرفة «لوحة التخطيط المشترك» وفيها خمس لوحات بيضاء (العامة + لوحة لكل قسم) بملاحظات لاصقة وأسهم وأطر.
-طريقة الاستخدام: الحركة بالأسهم أو WASD أو بالنقر. الاقتراب من مكتب زميل يفتح محادثة ومساحة مشتركة (اتفاقات، مهام، ملفات) وزر «مكالمة صوتية». دخول غرفة الاجتماعات يشغّل الصوت تلقائياً بين الحاضرين ويتيح مشاركة الشاشة وإنشاء محضر بالذكاء الاصطناعي يوزّع المهام. الوقوف أمام أي لوحة في غرفة التخطيط يفتحها (لوحة بيضاء بملاحظات لاصقة يمكن شطبها وأسهم وأطر وقلم) ويضعك في قناة صوتية خاصة بها مع من يقف أمامها. الحالة (متاح/مشغول/تركيز) من الشريط العلوي، ووضع التركيز يجعل الزائر يطرق الباب.
+        system: `أنت «نور»، موظفة الاستقبال والمساعدة الذكية في مبنى مجموعة سنكري القابضة الافتراضي. تتحدثين بالعربية الفصحى بإيجاز ووضوح وودّ، وتقترحين دائماً خطوة عملية تالية واحدة أو اثنتين.
+المستخدم: ${prof.name || info.username} (${prof.role || 'عضو'})، ${info.role === 'admin' ? 'وهو مسؤول النظام ويرى كل شيء' : 'مستخدم عادي'}. الطوابق المتاحة له: ${info.floors.map(f => (FLOORS.find(x => x.id === f) || {}).n).join('، ')}. صلاحياته: الموارد البشرية ${info.perms.hr}، المالية ${info.perms.finance}، لوحات التخطيط ${info.perms.boards} (none=لا وصول، view=اطلاع، edit=تعديل). اليوم ${today}.
+الطابق الحالي ${fl.n}: ${fl.name}. طوابق المبنى: ${FLOORS.map(f => f.n + ' ' + f.name).join('، ')}.
+مخطط الطابق: الاستقبال والمصعد عند المدخل؛ ${fl.manager} وفيه خزانة الموارد البشرية وخزنة الملفات المالية وحاسوب مسؤول النظام؛ غرفة «مكاتب البرامج» (${fl.programs.join('، ')})؛ غرفة «مكاتب العمليات» (${fl.operations.join('، ')})؛ غرفة الاجتماعات؛ الاستراحة؛ غرفة «لوحة التخطيط المشترك» وفيها خمس لوحات (العامة و${fl.tracks.join(' و')}).
+ما يمكن فعله في المكتب: المشي بالأسهم أو بالنقر بالماوس؛ التوقف عند مكتب زميل يفتح المحادثة (محفوظة في سجل المحادثات) ومهامه ومساحتكما المشتركة وزر مكالمة صوتية؛ على مكتبك قائمة مهامك بحالاتها (قيد التخطيط/قيد التنفيذ/منجزة) ومهام فرعية ومستجدات وموعد تسليم؛ غرفة الاجتماعات فيها حديث عادي بالصوت لا يُحفظ، وزر «ابدأ اجتماعاً رسمياً» يُسجَّل ويُحفظ عند إنهائه مع محضر اختياري يوزّع المهام على مكاتب أصحابها؛ لوحات التخطيط بستيكي نوت وأشكال وأسهم؛ حالة الموظف (متاح/مشغول/تركيز).
+مهام المستخدم:\n${taskTxt}
+${meetTxt}
 ${str(context, 2500)}
-إذا سأل عن مكان أو شخص فاستخدمي أداة show_way لرسم الطريق إليه، ثم أخبريه أن الخط البنفسجي يدله.`,
+الأدوات: show_way لرسم الطريق إلى مكان أو شخص؛ go_floor لنقله إلى طابق مسموح له؛ add_my_task لإضافة مهمة إلى مكتبه إذا طلب ذلك؛ open_feature لفتح ميزة (tasks مهامي، history سجل المحادثات، hr الموارد البشرية، finance المالية، admin إدارة المستخدمين). استخدميها حين يطلب المستخدم ذلك صراحة أو حين تكون الخطوة الواضحة. لا تخترعي أرقاماً أو وقائع غير مذكورة أعلاه.`,
         messages: toTurns(hist, 'nour'),
-        tools: [{ name: 'show_way', description: 'رسم خط إرشاد على الخريطة من الزائر إلى مكان أو مكتب شخص', input_schema: { type: 'object', properties: { target: { type: 'string', description: 'أحد: manager, pod_a, pod_b, pod_c, pod_d, meeting, lounge, reception, elevator, planning, board_general, board_a, board_b, board_c, board_d, my_desk، أو اسم شخص، أو اسم قسم' } }, required: ['target'] } }],
-        handlers: { show_way: ({ target }) => { guide = str(target, 60); return { ok: true }; } }
+        tools: [
+          { name: 'show_way', description: 'رسم خط إرشاد على الخريطة إلى مكان أو مكتب شخص', input_schema: { type: 'object', properties: { target: { type: 'string', description: 'أحد: manager, hr_cabinet, finance_safe, admin_pc, programs, operations, pod_a, pod_b, pod_c, pod_d, meeting, lounge, reception, elevator, planning, board_general, board_a, board_b, board_c, board_d, my_desk، أو اسم شخص' } }, required: ['target'] } },
+          { name: 'go_floor', description: 'نقل المستخدم بالمصعد إلى طابق', input_schema: { type: 'object', properties: { n: { type: 'integer', description: 'رقم الطابق' } }, required: ['n'] } },
+          { name: 'add_my_task', description: 'إضافة مهمة إلى قائمة مهام المستخدم على مكتبه', input_schema: { type: 'object', properties: { title: { type: 'string' }, due: { type: 'string', description: 'YYYY-MM-DD أو فارغ' } }, required: ['title'] } },
+          { name: 'open_feature', description: 'فتح ميزة للمستخدم', input_schema: { type: 'object', properties: { feature: { type: 'string', enum: ['tasks', 'history', 'hr', 'finance', 'admin'] } }, required: ['feature'] } }],
+        handlers: {
+          show_way: ({ target }) => { actions.push({ type: 'way', target: str(target, 60) }); return { ok: true }; },
+          go_floor: ({ n }) => { const f = FLOORS.find(x => x.n === +n); if (!f) return { error: 'لا يوجد طابق بهذا الرقم' }; if (!canFloor(uid, f.id)) return { error: 'هذا الطابق غير مسموح للمستخدم' }; actions.push({ type: 'floor', floor: f.id }); return { ok: true }; },
+          add_my_task: ({ title, due }) => { addTask(uid, { title, due: /^\d{4}-\d{2}-\d{2}$/.test(due || '') ? due : '', status: 'plan', by: uid, src: 'أضافتها نور', t: Date.now() }); return { ok: true }; },
+          open_feature: ({ feature }) => { actions.push({ type: 'open', feature: str(feature, 20) }); return { ok: true }; } }
       });
-      ack({ text, guide });
-    } catch (e) { if (!/no-key/.test(e.message)) console.warn(e.message); ack({ text: null, guide: null }); }
+      ack({ text, actions });
+    } catch (e) { if (!/no-key/.test(e.message)) console.warn(e.message); ack({ text: null, actions: [] }); }
   });
 
   /* ----- غرفة الاجتماعات ----- */
   socket.on('meeting:msg', ({ text, floor } = {}) => {
-    if (!authed() || !validFloor(floor)) return; text = str(text, 1000); if (!text) return;
-    if (!meetingOf(floor).sid) { meetingOf(floor).sid = rid(); meetingOf(floor).startedAt = Date.now(); }
+    if (!authed() || !canFloor(socket.data.uid, floor)) return; text = str(text, 1000); if (!text) return;
     pushMeetMsg(floor, { id: rid(), by: socket.data.uid, name: nameOf(socket.data.uid), text, t: Date.now() });
   });
-  socket.on('meeting:new', ({ floor } = {}) => { if (!authed() || !validFloor(floor)) return; startSession(floor); });
+  socket.on('meeting:start', ({ floor, title } = {}, ack) => {
+    if (!authed() || !canFloor(socket.data.uid, floor)) return;
+    const m = db.meetings[floor]; if (m.mode === 'meeting') return typeof ack === 'function' && ack({ error: 'يوجد اجتماع رسمي جارٍ' });
+    const att = [...inMeet[floor]].map(id => (online.get(id) || {}).name).filter(Boolean);
+    db.meetings[floor] = { sid: rid(), mode: 'meeting', title: str(title, 100) || 'اجتماع ' + new Date().toISOString().slice(0, 10), startedAt: Date.now(), msgs: [], startedBy: nameOf(socket.data.uid), att };
+    save(); emitMeet(floor); if (typeof ack === 'function') ack({ ok: true });
+  });
+  socket.on('meeting:end', async ({ floor, save: how } = {}, ack) => {
+    if (!authed() || !canFloor(socket.data.uid, floor) || typeof ack !== 'function') return;
+    const m = db.meetings[floor]; if (m.mode !== 'meeting') return ack({ error: 'لا يوجد اجتماع رسمي جارٍ' });
+    if (how === 'discard') { resetRoom(floor); return ack({ ok: true }); }
+    const rec = saveMeeting(floor); resetRoom(floor);
+    if (how === 'minutes') {
+      if (!AI_KEY) return ack({ ok: true, warn: 'حُفظ الاجتماع، لكن كتابة المحضر تحتاج مفتاح الذكاء الاصطناعي في إعدادات الخادم' });
+      if (rec.msgs.length < 2) return ack({ ok: true, warn: 'حُفظ الاجتماع دون محضر لأن النقاش المكتوب قصير جداً' });
+      try { const r = await makeMinutes(floor, rec, socket.data.uid); return ack({ ok: true, minutes: true, distributed: r.n }); } catch (e) { console.warn(e.message); return ack({ ok: true, warn: 'حُفظ الاجتماع، وتعذّرت كتابة المحضر الآن؛ يمكنك إنشاؤه لاحقاً من الأرشيف' }); }
+    }
+    ack({ ok: true });
+  });
   socket.on('meeting:session', ({ floor, sid } = {}, ack) => {
-    if (!authed() || typeof ack !== 'function' || !validFloor(floor)) return;
+    if (!authed() || typeof ack !== 'function' || !canFloor(socket.data.uid, floor)) return;
     const a = db.archive[floor].find(x => x.sid === sid); ack(a ? { ...a, minutes: db.minutes.filter(m => m.sid === sid) } : null);
   });
+  socket.on('minutes:make', async ({ floor, sid } = {}, ack) => { // محضر لاجتماع مؤرشف
+    if (!authed() || typeof ack !== 'function' || !canFloor(socket.data.uid, floor)) return;
+    const rec = db.archive[floor].find(x => x.sid === sid); if (!rec) return ack({ error: 'الاجتماع غير موجود' });
+    if (!AI_KEY) return ack({ error: 'كتابة المحضر تحتاج مفتاح الذكاء الاصطناعي في إعدادات الخادم' });
+    if (rec.msgs.length < 2) return ack({ error: 'النقاش المكتوب في هذا الاجتماع قصير جداً لكتابة محضر' });
+    try { const r = await makeMinutes(floor, rec, socket.data.uid); ack({ ok: true, distributed: r.n }); } catch (e) { console.warn(e.message); ack({ error: 'تعذّرت كتابة المحضر، حاول مرة أخرى' }); }
+  });
   socket.on('ai:meetbots', async ({ bots, floor } = {}) => {
-    if (!authed() || !validFloor(floor)) return; const here = (Array.isArray(bots) ? bots : []).filter(b => BOTS[b]); if (!here.length) return;
+    if (!authed() || !canFloor(socket.data.uid, floor)) return; const here = (Array.isArray(bots) ? bots : []).filter(b => BOTS[b]); if (!here.length) return;
     const mt = meetingOf(floor);
     const tr = mt.msgs.filter(m => m.t >= mt.startedAt).slice(-16).map(m => `${m.name}: ${m.text}`).join('\n');
     let replies = [];
@@ -391,33 +580,10 @@ ${str(context, 2500)}
     } catch (e) { if (!/no-key/.test(e.message)) console.warn(e.message); replies = [{ id: here[0], text: canned() }]; }
     for (const r of replies) if (BOTS[r.id] && r.text) { pushMeetMsg(floor, { id: rid(), by: r.id, name: BOTS[r.id].name, text: str(r.text, 600), t: Date.now() }); io.emit('bot:say', { bot: r.id, text: str(r.text, 120) }); }
   });
-  socket.on('minutes:make', async ({ floor } = {}, ack) => {
-    if (!authed() || typeof ack !== 'function' || !validFloor(floor)) return;
-    const mt = meetingOf(floor), fl = FLOORS.find(f => f.id === floor);
-    const l = mt.msgs.filter(m => m.t >= mt.startedAt);
-    if (l.length < 2) return ack({ error: 'اكتبوا نقاشاً أولاً ثم أنشئوا المحضر' });
-    if (!AI_KEY) return ack({ error: 'إنشاء المحضر يحتاج مفتاح الذكاء الاصطناعي في إعدادات الخادم' });
-    try {
-      const attendees = [...new Set(l.map(m => m.name))];
-      const res = await claude({ fast: false, max: 1500, system: 'تكتب محاضر اجتماعات دقيقة بالعربية الفصحى. أعد JSON فقط.', messages: [{ role: 'user', content:
-        `اكتب محضر اجتماع لفريق ${fl.name} من النقاش التالي، دون إضافة ما لم يُذكر.\nالحاضرون: ${attendees.join('، ')}\nالنقاش:\n${l.map(m => `${m.name}: ${m.text}`).join('\n')}\n\nالشكل: {"title":"عنوان قصير","summary":"ملخص في جملتين","decisions":["..."],"actions":[{"who":"اسم أحد الحاضرين كما ورد","what":"المهمة","due":"الموعد إن ذُكر وإلا فارغ"}]}` }] });
-      const j = parseJSON(res.content.map(c => c.text || '').join(''));
-      const doc = { id: rid(), title: str(j.title || 'محضر اجتماع', 120), summary: str(j.summary, 800), decisions: (j.decisions || []).slice(0, 12).map(x => str(x)),
-        actions: (j.actions || []).slice(0, 15).map(a => ({ who: str(a.who, 40), what: str(a.what), due: str(a.due, 60) })), attendees, floor, sid: mt.sid, t: Date.now(), by: socket.data.uid };
-      db.minutes.push(doc); if (db.minutes.length > 200) db.minutes.shift();
-      let n = 0;
-      for (const a of doc.actions) {
-        const id = findIdByName(a.who); if (!id || id === socket.data.uid) continue;
-        const key = pairKey(socket.data.uid, id); const p = getPair(key);
-        applyPairOp(p, socket.data.uid, id, { type: 'task:add', text: a.what + (a.due ? ' (' + a.due + ')' : '') }); emitPair(key); n++;
-      }
-      save(); io.emit('minutes', db.minutes.slice(-100).reverse()); ack({ ok: true, distributed: n });
-    } catch (e) { console.warn(e.message); ack({ error: 'تعذّر إنشاء المحضر، حاول مرة أخرى' }); }
-  });
-
   /* ----- لوحات التخطيط المشترك ----- */
   socket.on('wb:op', ({ bid, op } = {}, ack) => {
     const b = db.boards[bid]; if (!authed() || !b || !op) return;
+    if (!canFloor(socket.data.uid, bid.split('.')[0]) || perm(socket.data.uid, 'boards') !== 'edit') { if (typeof ack === 'function') ack(null); return socket.emit('board', b); }
     const r = applyWb(b, op, socket.data.uid);
     if (typeof ack === 'function') ack(r);
     if (r) { b.updatedAt = Date.now(); save(); socket.broadcast.emit('board', b); socket.emit('board', b); }
@@ -438,6 +604,7 @@ ${str(context, 2500)}
   }
   socket.on('voice:join', ({ channel } = {}) => {
     if (!authed() || !VOICE_RE.test(channel || '')) return;
+    const chFloor = (channel.match(/^(?:meeting:|board:)(f\d)/) || [])[1]; if (chFloor && !canFloor(socket.data.uid, chFloor)) return;
     if (channel.startsWith('pair:')) { // لا يدخل مكالمة ثنائية إلا طرفاها
       const others = Object.keys(db.profiles).concat(Object.keys(BOTS));
       if (!others.some(o => 'pair:' + pairKey(socket.data.uid, o) === channel)) return;

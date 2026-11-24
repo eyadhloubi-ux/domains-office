@@ -19,6 +19,9 @@
   <button data-v="busy"><i style="background:#f0a020"></i>مشغول</button>
   <button data-v="focus"><i style="background:#e5484d"></i>تركيز</button>
  </div>
+ <button class="hb" id="tasksBtn" title="مهامي">✅ مهامي</button>
+ <button class="hb" id="histBtn" title="سجل المحادثات">💬 المحادثات</button>
+ <button class="hb" id="adminBtn" hidden title="إدارة المستخدمين والصلاحيات">⚙ الإدارة</button>
  <button class="hb" id="meBtn">حسابي</button>
 </header>
 <div id="stage">
@@ -28,6 +31,7 @@
  <div class="help" id="help">تحرّك بالأسهم أو بالنقر بالماوس · المصعد في الاستقبال</div>
  <aside id="panel" class="hide"></aside>
  <section id="board" hidden></section>
+ <section id="dash" hidden></section>
  <div id="vbar" hidden></div>
  <div id="screen" hidden><div class="sh"><span id="scrTitle">شاشة مشتركة</span><button id="scrFull">تكبير</button><button id="scrHide">إخفاء</button></div><video id="scrVid" autoplay playsinline muted></video></div>
  <button class="btn vi" id="unlock" hidden>اضغط لتفعيل سماع الصوت</button>
@@ -39,8 +43,7 @@
 <div id="auth" class="modal" hidden>
  <form class="ob" id="auForm" autocomplete="on">
   <h2>مكتب سنكري القابضة الافتراضي</h2>
-  <p id="auSub">ادخل باسم المستخدم وكلمة المرور.</p>
-  <div class="seg" id="auTabs"><button type="button" data-m="login" class="on">تسجيل الدخول</button><button type="button" data-m="reg">حساب جديد</button></div>
+  <p id="auSub">ادخل باسم المستخدم وكلمة المرور التي أعطاك إياها مسؤول النظام.</p>
   <div><div class="lbl">اسم المستخدم</div><input id="auUser" autocomplete="username" dir="auto" required maxlength="30"></div>
   <div><div class="lbl">كلمة المرور</div><input id="auPass" type="password" autocomplete="current-password" required maxlength="100"></div>
   <div id="auReg" hidden>

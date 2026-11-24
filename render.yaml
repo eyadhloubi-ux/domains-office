@@ -16,7 +16,11 @@ services:
         value: "20"
       - key: DATA_DIR
         value: /var/data
-      - key: ACCESS_CODE        # رمز الفريق لإنشاء الحسابات (مستحسن)
+      - key: ADMIN_USERNAME     # اسم مستخدم مسؤول النظام (يُنشأ أو يُرقّى تلقائياً)
+        sync: false
+      - key: ADMIN_PASSWORD     # كلمة مرور مسؤول النظام
+        sync: false
+      - key: ACCESS_CODE        # اختياري: رمز لشاشة إعداد أول مسؤول
         sync: false
       - key: VOICE_MODE         # اختياري: relay لتمرير الصوت عبر الخادم دائماً
         sync: false
