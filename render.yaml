@@ -1,0 +1,32 @@
+# Render Blueprint — مكتب DOMAINS الافتراضي
+# خطة starter مع قرص دائم حتى لا تضيع البيانات (المكاتب، المحادثات، اللوحات، المحاضر) عند إعادة التشغيل.
+# للتجربة المجانية: غيّر plan إلى free واحذف قسم disk (ستُمسح البيانات عند كل إعادة تشغيل).
+services:
+  - type: web
+    name: domains-office
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATA_DIR
+        value: /var/data
+      - key: ACCESS_CODE        # رمز دخول الفريق (اختياري لكنه مستحسن)
+        sync: false
+      - key: ANTHROPIC_API_KEY  # لتفعيل نور والزملاء التجريبيين والمحاضر
+        sync: false
+      - key: TURN_URL           # اختياري: turn:host:3478,turns:host:5349
+        sync: false
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_CREDENTIAL
+        sync: false
+    disk:
+      name: office-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مكتب DOMAINS الافتراضي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light;--ocean:#00175A;--blue:#0616C4;--violet:#8042EB;--bg:#f4f5fb;--panel:#fff;--ink:#0b1230;--muted:#5b6487;--line:#e1e4f0;--soft:#f0f1fa;--ok:#18a864;--warn:#e09612;--bad:#e5484d}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Tajawal,system-ui,sans-serif;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+header{height:56px;background:var(--ocean);color:#fff;display:flex;align-items:center;gap:12px;padding:0 14px;position:relative;z-index:5}
+.logo{font-weight:800;letter-spacing:.5px;font-size:19px}
+.logo small{font-weight:500;opacity:.75;font-size:13px;margin-inline-start:6px;letter-spacing:0}
+header .sp{flex:1}
+header select,header .hb{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);color:#fff;border-radius:10px;height:36px;padding:0 10px;cursor:pointer}
+header select option{color:#0b1230}
+.online{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.9;white-space:nowrap}
+.online i{width:8px;height:8px;border-radius:50%;background:#2fd28a;display:inline-block}
+.online i.off{background:#e5484d}
+#stage{position:absolute;top:56px;left:0;right:0;bottom:0}
+canvas#map{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.help{position:absolute;bottom:12px;right:50%;transform:translateX(50%);background:rgba(0,23,90,.86);color:#fff;padding:6px 14px;border-radius:999px;font-size:13px;white-space:nowrap;pointer-events:none}
+#panel{position:absolute;left:12px;top:12px;bottom:12px;width:min(370px,calc(100% - 24px));background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px rgba(0,23,90,.22);display:flex;flex-direction:column;overflow:hidden;transition:transform .22s ease,opacity .22s;z-index:3}
+#panel.hide{transform:translateX(-24px);opacity:0;pointer-events:none}
+.ph{display:flex;align-items:center;gap:10px;padding:14px 14px 10px;border-bottom:1px solid var(--line)}
+.ph b{display:block;font-size:16px}.ph small{color:var(--muted);font-size:12.5px}
+.pdot{width:34px;height:34px;border-radius:50%;flex:none;border:3px solid var(--soft)}
+.x{margin-inline-start:auto;background:none;border:0;font-size:22px;cursor:pointer;color:var(--muted);width:36px;height:36px;border-radius:8px;flex:none}
+.x:hover{background:var(--soft)}
+.tabs{display:flex;gap:4px;padding:8px 10px 0}
+.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:8px;cursor:pointer;color:var(--muted);font-weight:700}
+.tabs button.on{color:var(--blue);border-color:var(--blue)}
+.pane{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.pane[hidden]{display:none}
+.msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.m{max-width:85%;padding:8px 11px;border-radius:14px;background:var(--soft);align-self:flex-end;white-space:pre-wrap;overflow-wrap:anywhere}
+.m.me{align-self:flex-start;background:var(--blue);color:#fff}
+.m small{display:block;font-size:11.5px;opacity:.7;font-weight:700;margin-bottom:2px}
+.m.sys{align-self:center;background:none;color:var(--muted);font-size:13px;text-align:center}
+.typing{color:var(--muted);font-size:13px;padding:0 14px 6px}
+form.send{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
+input,select.in{height:42px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:0 10px;font-size:16px;flex:1}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
+.btn{height:42px;border:0;border-radius:10px;background:var(--blue);color:#fff;padding:0 14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn.ghost{background:var(--soft);color:var(--ink)}
+.btn.vi{background:var(--violet)}.btn.ok{background:var(--ok)}.btn.bad{background:var(--bad)}
+.btn:disabled{opacity:.5;cursor:default}
+.scrollp{flex:1;overflow-y:auto;padding:12px}
+.sec{margin-bottom:16px}
+.sec h4{margin:0 0 6px;font-size:14px;color:var(--ocean)}
+.sec ul{list-style:none;margin:0 0 6px;padding:0;display:flex;flex-direction:column;gap:4px}
+.sec li{display:flex;align-items:center;gap:8px;background:var(--soft);border-radius:10px;padding:6px 10px;font-size:14px}
+.sec li span{flex:1;overflow-wrap:anywhere}
+.sec li.done span{text-decoration:line-through;opacity:.6}
+.sec li a{color:var(--blue);overflow-wrap:anywhere}
+.sec li em{font-style:normal;font-size:12px;color:var(--muted);white-space:nowrap}
+.sec li button{background:none;border:0;cursor:pointer;color:var(--muted);font-size:16px}
+.sec form{display:flex;gap:6px;flex-wrap:wrap}
+.sec form input{min-width:120px}
+.empty{color:var(--muted);font-size:13px;padding:2px 2px 6px}
+.note{margin:10px 12px 0;background:var(--soft);border-radius:10px;padding:8px 10px;font-size:13px;color:var(--muted)}
+.row{display:flex;gap:6px;padding:10px 12px 0;flex-wrap:wrap}
+.row .btn{height:36px;font-size:13.5px;flex:1}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 6px}
+.chips button{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13px}
+.card{background:var(--soft);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:14px}
+.card b{display:block;font-size:15px}.card small{color:var(--muted)}
+.card ul{margin:4px 0;padding-inline-start:18px}
+.big{padding:18px 16px}.big p{margin:0 0 12px;color:var(--muted)}
+#toasts{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:8px;z-index:9;max-width:min(340px,calc(100% - 24px))}
+.toast{background:var(--ocean);color:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:14px;animation:tin .25s ease}
+.toast .btn{height:32px;margin-top:8px;margin-inline-end:6px;font-size:13px}
+@keyframes tin{from{opacity:0;transform:translateY(-6px)}}
+/* شريط الصوت */
+#vbar{position:absolute;bottom:12px;z-index:7;right:50%;transform:translateX(50%);background:var(--ocean);color:#fff;border-radius:16px;padding:8px 10px;display:flex;align-items:center;gap:8px;box-shadow:0 12px 34px rgba(0,23,90,.35);max-width:calc(100% - 24px);flex-wrap:wrap;justify-content:center}
+#vbar[hidden]{display:none}
+#vbar .ch{font-weight:800;font-size:14px;padding:0 6px;white-space:nowrap}
+#vbar .ppl{display:flex;gap:4px;flex-wrap:wrap}
+#vbar .pp{background:rgba(255,255,255,.12);border-radius:999px;padding:3px 10px;font-size:12.5px;border:2px solid transparent;white-space:nowrap}
+#vbar .pp.sp{border-color:#2fd28a;background:rgba(47,210,138,.2)}
+#vbar .pp.bad{opacity:.55}
+#vbar button{height:36px;border:0;border-radius:10px;padding:0 12px;cursor:pointer;font-weight:700;background:rgba(255,255,255,.14);color:#fff;white-space:nowrap}
+#vbar button.on{background:#e5484d}
+#vbar button.live{background:#2fd28a;color:#00175A}
+/* عارض الشاشة */
+#screen{position:absolute;right:12px;top:12px;width:min(560px,calc(100% - 24px));background:#0a0f26;border-radius:14px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.35);z-index:6;display:flex;flex-direction:column}
+#screen[hidden]{display:none}
+#screen .sh{display:flex;align-items:center;gap:8px;padding:8px 10px;color:#fff;font-size:13.5px;font-weight:700}
+#screen .sh span{flex:1}
+#screen .sh button{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:8px;height:30px;padding:0 10px;cursor:pointer}
+#screen video{width:100%;max-height:60vh;background:#000;display:block}
+#screen.full{inset:12px;width:auto}#screen.full video{max-height:none;flex:1}
+/* لوحة التخطيط */
+#board{position:absolute;left:12px;top:12px;bottom:72px;right:12px;background:var(--panel);border-radius:18px;box-shadow:0 24px 70px rgba(0,23,90,.3);z-index:5;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line)}
+#board[hidden]{display:none}
+.bh{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--ocean);color:#fff;flex-wrap:wrap}
+.bh h2{margin:0;font-size:22px;line-height:1.2}
+.bh small{opacity:.8;font-size:13px}
+.ring{width:56px;height:56px;flex:none}
+.bstats{display:flex;gap:16px;font-size:13px;flex-wrap:wrap}
+.bstats b{display:block;font-size:20px;line-height:1.1}
+.bh .x{color:#fff}
+.bh .x:hover{background:rgba(255,255,255,.12)}
+.bwho{font-size:12.5px;opacity:.9}
+.kpis{display:flex;gap:10px;padding:12px 18px 4px;overflow-x:auto;flex:none}
+.kpi{background:var(--soft);border-radius:12px;padding:8px 12px;min-width:170px;flex:none;font-size:13px;position:relative}
+.kpi b{display:block;font-size:14px;padding-inline-end:16px}
+.kpi .bar{height:7px;background:#dfe2f2;border-radius:9px;overflow:hidden;margin:6px 0 4px}
+.kpi .bar i{display:block;height:100%;background:var(--violet)}
+.kpi input{height:30px;width:80px;font-size:14px;padding:0 6px;flex:none}
+.kpi .del{position:absolute;left:6px;top:4px;background:none;border:0;cursor:pointer;color:var(--muted)}
+.kpi.add{display:flex;gap:6px;align-items:center;background:none;border:1px dashed var(--line)}
+.kpi.add input{width:auto;flex:1;min-width:70px}
+.cols{flex:1;display:flex;gap:12px;padding:12px 18px 18px;overflow-x:auto;align-items:flex-start}
+.col{background:var(--soft);border-radius:14px;width:290px;flex:none;max-height:100%;display:flex;flex-direction:column}
+.colh{display:flex;align-items:center;gap:6px;padding:10px 12px 6px}
+.colh input{height:32px;font-weight:800;background:transparent;border-color:transparent;font-size:15px;padding:0 4px}
+.colh input:focus{background:#fff;border-color:var(--line)}
+.colh em{font-style:normal;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap;color:#fff}
+.colh .del{background:none;border:0;cursor:pointer;color:var(--muted);font-size:16px}
+.cbar{height:5px;background:#dfe2f2;margin:0 12px 6px;border-radius:9px;overflow:hidden}.cbar i{display:block;height:100%;background:var(--ok)}
+.tasks{overflow-y:auto;padding:0 8px;display:flex;flex-direction:column;gap:6px}
+.task{background:#fff;border-radius:10px;padding:8px 10px;font-size:14px;border:1px solid var(--line);display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 8px;align-items:start}
+.task.done .tt{text-decoration:line-through;opacity:.55}
+.task.late{border-color:#f1b4b6;background:#fff6f6}
+.task input[type=checkbox]{width:18px;height:18px;margin-top:2px}
+.task .meta{grid-column:2/4;display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.task .meta select,.task .meta input{height:28px;font-size:12.5px;padding:0 6px;border-radius:8px;flex:none;width:auto;background:var(--soft)}
+.task .del{background:none;border:0;cursor:pointer;color:var(--muted)}
+.task .late-t{color:var(--bad);font-weight:700}
+.addt{display:flex;gap:6px;padding:8px}
+.addt input{height:36px;font-size:14px}
+.addt .btn{height:36px}
+.col.new{background:none;border:2px dashed var(--line);padding:10px}
+.col.new form{display:flex;gap:6px}
+/* التسجيل */
+#onb{position:fixed;inset:0;background:rgba(0,10,40,.55);display:grid;place-items:center;z-index:20;padding:16px}
+#onb[hidden]{display:none}
+.ob{background:var(--panel);border-radius:20px;width:min(540px,100%);max-height:100%;overflow:auto;padding:22px;display:grid;gap:12px}
+.ob h2{margin:0;font-size:24px;line-height:1.2;color:var(--ocean)}
+.ob p{margin:0;color:var(--muted)}
+.obg{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;align-items:start}
+#prev{width:120px;height:150px;background:var(--soft);border-radius:14px}
+.lbl{font-size:13px;font-weight:700;margin:6px 0 4px;color:var(--muted)}
+.sw{display:flex;gap:6px;flex-wrap:wrap}
+.sw button{width:32px;height:32px;border-radius:50%;border:3px solid transparent;cursor:pointer}
+.sw button.on{border-color:var(--violet)}
+.sw.t button{width:auto;border-radius:999px;padding:0 14px;background:var(--soft);font-size:14px;height:36px}
+.sw.t button.on{background:var(--violet);color:#fff;border-color:var(--violet)}
+.err{color:var(--bad);font-size:13px;min-height:1em}
+#unlock{position:absolute;top:12px;right:50%;transform:translateX(50%);z-index:8}
+#unlock[hidden]{display:none}
+@media(max-width:700px){
+ #panel{left:8px;right:8px;width:auto;top:auto;height:58%;bottom:8px}
+ #panel.hide{transform:translateY(24px)}
+ .online span,.logo small{display:none}
+ header{gap:8px;padding:0 10px}
+ header select{max-width:110px}
+ .obg{grid-template-columns:minmax(0,1fr)}#prev{width:100%;height:120px}
+ #board{left:6px;right:6px;top:6px;bottom:6px}
+ .col{width:250px}
+ #vbar{bottom:8px}
+}
+@media(max-width:520px){#floor{display:none}.logo{font-size:16px}#vbar .ppl{display:none}}
+@media(prefers-reduced-motion:reduce){#panel,.toast{transition:none;animation:none}}
+</style>
+</head>
+<body>
+<header>
+ <div class="logo">DOMAINS<small>المكتب الافتراضي</small></div>
+ <select id="floor" aria-label="الطابق">
+  <option selected>الطابق 3 · DOMAINS</option>
+  <option disabled>الطابق 1 · سنكري القابضة (قريباً)</option>
+  <option disabled>الطابق 2 · مؤسسة المجد (قريباً)</option>
+  <option disabled>الطابق 4 · آركدن الهندسية (قريباً)</option>
+  <option disabled>الطابق 5 · مول أوف اليبو (قريباً)</option>
+ </select>
+ <div class="sp"></div>
+ <div class="online"><i id="conn"></i><b id="onCount">1</b><span>&nbsp;في المكتب الآن</span></div>
+ <select id="status" aria-label="حالتي">
+  <option value="free">🟢 متاح</option>
+  <option value="busy">🟡 مشغول</option>
+  <option value="focus">🔴 تركيز · لا إزعاج</option>
+ </select>
+ <button class="hb" id="meBtn">شكلي</button>
+</header>
+<div id="stage">
+ <canvas id="map" aria-label="خريطة المكتب"></canvas>
+ <div class="help" id="help">تحرّك بالأسهم أو WASD، أو انقر على الأرض</div>
+ <aside id="panel" class="hide"></aside>
+ <section id="board" hidden></section>
+ <div id="vbar" hidden></div>
+ <div id="screen" hidden><div class="sh"><span id="scrTitle">شاشة مشتركة</span><button id="scrFull">تكبير</button><button id="scrHide">إخفاء</button></div><video id="scrVid" autoplay playsinline muted></video></div>
+ <button class="btn vi" id="unlock" hidden>اضغط لتفعيل سماع الصوت</button>
+ <div id="toasts"></div>
+ <div id="audios" hidden></div>
+</div>
+
+<div id="onb" hidden>
+ <form class="ob" id="obForm">
+  <h2>أهلاً بك في مكتب DOMAINS</h2>
+  <p>اختر اسمك وشكلك، ثم ادخل وامشِ إلى أي مكتب فارغ لتحجزه.</p>
+  <div class="obg">
+   <canvas id="prev"></canvas>
+   <div>
+    <div class="lbl">الاسم</div><input id="obName" required maxlength="30" placeholder="مثال: محمد إياد">
+    <div class="lbl">الدور في الفريق</div><input id="obRole" maxlength="40" placeholder="مثال: مدير المشروع">
+   </div>
+  </div>
+  <div><div class="lbl">الجنس</div><div class="sw t" id="swGender"><button type="button" data-v="m">ذكر</button><button type="button" data-v="f">أنثى</button></div></div>
+  <div><div class="lbl">لون اللباس</div><div class="sw" id="swShirt"></div></div>
+  <div><div class="lbl">المظهر</div><div class="sw t" id="swStyle"></div><div class="sw" id="swHair" style="margin-top:6px"></div></div>
+  <div><div class="lbl">لون البشرة</div><div class="sw" id="swSkin"></div></div>
+  <div id="codeBox" hidden><div class="lbl">رمز الدخول للفريق</div><input id="obCode" maxlength="80" autocomplete="off"></div>
+  <div class="err" id="obErr"></div>
+  <button class="btn" style="height:46px">ادخل المكتب</button>
+ </form>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+const LAPTOP=matchMedia('(pointer:fine)').matches&&Math.max(screen.width,screen.height)>=1000;
+if(!LAPTOP){document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#00175A;color:#fff;text-align:center"><div style="max-width:420px"><div style="font-size:26px;font-weight:800;letter-spacing:.5px;margin-bottom:18px">DOMAINS</div><h1 style="font-size:24px;margin:0 0 12px;line-height:1.3">المكتب الافتراضي مخصص للابتوب</h1><p style="margin:0;opacity:.85;font-size:16px;line-height:1.7">افتح هذا الرابط من اللابتوب (Chrome أو Edge) لتدخل المكتب وتتحرك فيه وتشارك في الاجتماعات الصوتية ومشاركة الشاشة.</p></div></div>';return}
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+
+/* ================= الخريطة ================= */
+const W=1760,H=900;
+const ROOMS=[
+ {id:'manager',x:12,y:12,w:360,h:300,c:'#e5e8f8'},
+ {id:'reception',x:12,y:476,w:360,h:412,c:'#e8ecf8'},
+ {id:'meeting',x:1020,y:12,w:368,h:408,c:'#e9e4fb'},
+ {id:'lounge',x:1020,y:526,w:368,h:362,c:'#f4ede3'},
+ {id:'planning',x:1400,y:12,w:348,h:876,c:'#e4ecf7'}];
+const PODS=[{id:'t',name:'مسار التدريب',x:430,y:150},{id:'e',name:'مسار الفعاليات',x:720,y:150},{id:'v',name:'مسار التطوع',x:430,y:560},{id:'p',name:'مسار المشاريع',x:720,y:560}];
+const DESKS=[{id:'m1',zone:'مكتب مدير المشروع',x:120,y:110,w:150,h:60,seat:{x:195,y:88},colX:300,top:true}];
+PODS.forEach(p=>{for(let i=0;i<4;i++){const dx=(i%2)*96,dy=i<2?0:56,x=p.x+dx,y=p.y+dy;DESKS.push({id:p.id+(i+1),zone:p.name,x,y,w:90,h:50,seat:{x:x+45,y:i<2?p.y-22:p.y+128},colX:p.x-26,top:i<2})}});
+const BOARDS=[['general','لوحة DOMAINS العامة','#0616C4'],['training','مسار التدريب','#1f9d74'],['events','مسار الفعاليات','#8042EB'],['projects','مسار المشاريع','#e09612'],['volunteer','مسار التطوع','#e5484d']].map(([id,title,c],i)=>({id,title,c,y:110+i*170,front:{x:1640,y:110+i*170}}));
+const WALLS=[[0,0,W,12],[0,888,W,12],[0,0,12,H],[W-12,0,12,H],
+ [366,12,12,300],[12,306,248,12],[340,306,38,12],
+ [12,470,250,12],[342,470,36,12],[366,470,12,290],[366,860,12,28],
+ [1014,414,250,12],[1344,414,44,12],
+ [1014,520,60,12],[1160,520,228,12],[1014,520,12,368],
+ [1388,12,12,410],[1388,520,12,368]];
+const GLASS=[[1014,12,12,408]];
+const FURN=[...PODS.map(p=>[p.x,p.y,186,106]),[120,110,150,60],[1110,140,190,140],[120,580,180,46],[1336,560,44,200],[1060,800,170,46],[1090,720,110,40],[24,140,26,120],...BOARDS.map(b=>[1708,b.y-62,32,124])];
+const SOLIDS=[...WALLS,...GLASS,...FURN];
+const RECEPT={x:210,y:556};
+const MEET_SEATS=[{x:1150,y:302},{x:1255,y:302},{x:1150,y:118},{x:1255,y:118},{x:1088,y:210},{x:1322,y:210}];
+const PLACES={manager:{x:300,y:250,n:'مكتب مدير المشروع'},training:{x:520,y:305,n:'مسار التدريب'},events:{x:810,y:305,n:'مسار الفعاليات'},volunteer:{x:520,y:720,n:'مسار التطوع'},projects:{x:810,y:720,n:'مسار المشاريع'},meeting:{x:1200,y:350,n:'غرفة الاجتماعات'},lounge:{x:1180,y:640,n:'الاستراحة'},reception:{x:210,y:680,n:'الاستقبال'},planning:{x:1520,y:470,n:'لوحة التخطيط المشترك'}};
+BOARDS.forEach(b=>PLACES['board_'+b.id]={x:b.front.x,y:b.front.y,n:'لوحة '+b.title});
+const zoneAt=p=>{for(const r of ROOMS)if(p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h)return r.id;return 'open'};
+const boardAt=p=>{if(zoneAt(p)!=='planning')return null;let best=null,bd=100;BOARDS.forEach(b=>{const d=dist(p,b.front);if(d<bd){bd=d;best=b}});return best};
+const hits=(x,y,r)=>SOLIDS.some(([a,b,w,h])=>x+r>a&&x-r<a+w&&y+r>b&&y-r<b+h);
+
+/* ================= الحالة ================= */
+const LOOKS={shirt:['#0616C4','#8042EB','#00175A','#e5484d','#1f9d74','#f0a020','#2b8fd6','#3d3d4d'],hair:['#1d140f','#4a2c1a','#8a5a2b','#c9a15a','#5b5b66','#f2f2f2','#00175A','#8042EB'],skin:['#f6d6bd','#e8b98f','#c98e62','#8d5a3b'],
+ style:{m:[['short','شعر قصير'],['beard','قصير مع لحية']],f:[['hijab','حجاب'],['long','شعر طويل']]}};
+let uid=LS.get('office.uid');if(!uid||!/^[a-zA-Z0-9_-]{8,64}$/.test(uid)){uid='u'+rid()+rid();LS.set('office.uid',uid)}
+const me={id:uid,name:'',role:'',look:{gender:null,shirt:'#0616C4',hair:'#1d140f',skin:'#e8b98f',style:'short'},x:210,y:700,status:'free',desk:null,moving:false,say:null};
+let pendingSave=false,profiles={},peers=new Map(),boards={},minutes=[],meet={startedAt:0,msgs:[]},ICE=[],AI=false,selfSid=null,joined=false,needCode=false;
+const BOTS=[
+ {id:'bot-ahmad',name:'أحمد (تجريبي)',role:'منسّق مسار التدريب',desk:'t2',look:{gender:'m',shirt:'#1f9d74',hair:'#1d140f',skin:'#e8b98f',style:'beard'}},
+ {id:'bot-leen',name:'لين (تجريبية)',role:'مسؤولة مسار الفعاليات',desk:'e1',look:{gender:'f',shirt:'#8042EB',hair:'#4a2c1a',skin:'#f6d6bd',style:'hijab'}}];
+BOTS.forEach(b=>{const d=DESKS.find(x=>x.id===b.desk);b.x=d.seat.x;b.y=d.seat.y;b.route=[];b.at='desk';b.next=Date.now()+30000+Math.random()*30000;b.status='free'});
+const deskOf=id=>DESKS.find(d=>d.id===id);
+function person(id){if(id===me.id)return me;const b=BOTS.find(x=>x.id===id);if(b)return b;const p=profiles[id];return p?{id,...p}:null}
+function deskOwner(d){const b=BOTS.find(x=>x.desk===d.id);if(b)return b.id;if(me.desk===d.id)return me.id;for(const id in profiles)if(id!==me.id&&profiles[id].desk===d.id)return id;return null}
+const onlineUids=()=>new Set([...peers.values()].map(p=>p.uid));
+const peerOfUid=id=>[...peers.values()].find(p=>p.uid===id);
+
+/* ================= الاتصال ================= */
+const socket=io({transports:['websocket','polling']});
+function hello(){socket.emit('hello',{uid,code:LS.get('office.code')||''},r=>{
+ if(!r||!r.ok){if(r&&r.needCode){needCode=true;$('#codeBox').hidden=false;showOnb();$('#obErr').textContent=LS.get('office.code')?'رمز الدخول غير صحيح':''}return}
+ joined=true;selfSid=r.self;ICE=r.ice||[];AI=!!r.ai;profiles=r.profiles||{};boards=r.boards||{};minutes=r.minutes||[];meet=r.meeting||meet;
+ peers.clear();(r.peers||[]).forEach(addPeer);
+ if(pendingSave){pendingSave=false;$('#onb').hidden=true;saveProfile();sendPos(true);toast('أهلاً '+me.name+'! المكاتب الفارغة محاطة بإطار بنفسجي، امشِ إلى أحدها واحجزه.')}
+ else if(r.profile&&r.profile.name){Object.assign(me,{name:r.profile.name,role:r.profile.role||'',desk:r.profile.desk||null});me.look={...me.look,...r.profile.look};$('#onb').hidden=true;sendPos(true)}
+ else showOnb();
+ if(V.channel){const ch=V.channel;voiceLeave(true);V.want=null}
+})}
+socket.on('connect',()=>{$('#conn').classList.remove('off');hello()});
+socket.on('disconnect',()=>{$('#conn').classList.add('off');joined=false;toast('انقطع الاتصال بالخادم، تجري إعادة المحاولة…')});
+function addPeer(p){if(!p||p.id===socket.id)return;const old=peers.get(p.id);peers.set(p.id,{...p,pos:old?old.pos:{x:p.x,y:p.y}})}
+socket.on('peer:join',p=>{addPeer(p);if(p.name)toast(p.name+' دخل المكتب')});
+socket.on('pos',addPeer);
+socket.on('peer:left',({id})=>{peers.delete(id);if(V.pcs.has(id))dropPeer(id)});
+socket.on('profiles',p=>{profiles=p||{};const mine=profiles[me.id];if(mine)me.desk=mine.desk||null;if(cur&&cur.type==='person')refreshPersonHead()});
+socket.on('board',b=>{if(b&&b.id){boards[b.id]=b;if(curBoard===b.id)renderBoard()}});
+socket.on('minutes',l=>{minutes=l||[];drawMin()});
+socket.on('meeting:msg',m=>{meet.msgs.push(m);if(meet.msgs.length>300)meet.msgs.shift();drawMeet()});
+socket.on('meeting:state',s=>{meet.startedAt=s.startedAt;drawMeet()});
+socket.on('pair:msg',({key,msg})=>{if(pair&&pair.key===key){pair.msgs.push(msg);drawPairMsgs()}});
+socket.on('pair:doc',({key,doc})=>{if(pair&&pair.key===key){pair.doc=doc;renderShared()}});
+socket.on('bot:say',({bot,text})=>{const b=BOTS.find(x=>x.id===bot);if(b){b.say={text,until:Date.now()+6000};b.status='free'}const ty=$('#typing');if(ty)ty.hidden=true});
+socket.on('dm',d=>toast('💬 '+d.name+': '+d.text));
+socket.on('knock',d=>toast('🚪 '+d.name+' يطرق بابك'));
+socket.on('call:invite',d=>{toast('📞 '+d.name+' يتصل بك',[['ردّ',()=>{V.pairCall=d.channel;V.pairName=d.name}],['لاحقاً',()=>{}]],15000)});
+
+/* ================= الرسم ================= */
+const cv=$('#map'),ctx=cv.getContext('2d');
+let dpr=1,scale=1,cam={x:0,y:0},vw=0,vh=0,pad=0;
+function resize(){const r=cv.getBoundingClientRect();dpr=window.devicePixelRatio||1;vw=r.width;vh=r.height;cv.width=vw*dpr;cv.height=vh*dpr}
+new ResizeObserver(resize).observe(cv);
+function fitScale(){const aw=vw-pad;scale=vw<700?clamp(vw/760,.5,1):clamp(Math.min(aw/W,vh/H),.7,1.25)}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
+function dot(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill()}
+const STC={free:'#22c27a',busy:'#f0a020',focus:'#e5484d'};
+function drawAvatar(c,x,y,look,o={}){
+ c.save();const f=look.gender==='f';
+ c.fillStyle='rgba(0,23,90,.18)';c.beginPath();c.ellipse(x,y+15,13,5,0,0,7);c.fill();
+ if(o.speaking){c.strokeStyle='rgba(47,210,138,.9)';c.lineWidth=3;c.beginPath();c.ellipse(x,y+15,20,9,0,0,7);c.stroke()}
+ if(o.me){c.strokeStyle='#0616C4';c.lineWidth=2.5;c.beginPath();c.ellipse(x,y+15,17,7,0,0,7);c.stroke()}
+ const sw=o.moving?Math.sin((o.t||0)*14)*3:0;
+ if(look.style==='long'){c.fillStyle=look.hair;c.beginPath();c.roundRect(x-10,y-28,20,26,8);c.fill()}
+ if(f){c.fillStyle='#1e2a4a';c.beginPath();c.roundRect(x-6,y+10,5,5+sw*.5,2);c.roundRect(x+1,y+10,5,5-sw*.5,2);c.fill();
+  c.fillStyle=look.shirt;c.beginPath();c.moveTo(x-9,y-12);c.lineTo(x+9,y-12);c.quadraticCurveTo(x+12,y-11,x+12,y-6);c.lineTo(x+14,y+12);c.lineTo(x-14,y+12);c.lineTo(x-12,y-6);c.quadraticCurveTo(x-12,y-11,x-9,y-12);c.fill();
+  c.fillStyle='rgba(255,255,255,.18)';c.fillRect(x-1,y-10,2,20)}
+ else{c.fillStyle='#1e2a4a';c.beginPath();c.roundRect(x-7,y+2,5,12+sw,2);c.roundRect(x+2,y+2,5,12-sw,2);c.fill();
+  c.fillStyle=look.shirt;c.beginPath();c.roundRect(x-11,y-12,22,18,7);c.fill()}
+ if(look.style==='hijab'){c.fillStyle=look.hair;c.beginPath();c.arc(x,y-20,11,0,7);c.fill();c.beginPath();c.moveTo(x-11,y-18);c.lineTo(x-13,y-5);c.lineTo(x+13,y-5);c.lineTo(x+11,y-18);c.fill();c.fillStyle=look.skin;c.beginPath();c.arc(x,y-19,6.5,0,7);c.fill()}
+ else{c.fillStyle=look.skin;c.beginPath();c.arc(x,y-20,9,0,7);c.fill();c.fillStyle=look.hair;c.beginPath();c.arc(x,y-21,9.6,Math.PI*1.02,Math.PI*1.98);c.fill();
+  if(look.style==='beard'){c.beginPath();c.arc(x,y-18,8.4,Math.PI*.12,Math.PI*.88);c.lineTo(x-6,y-17);c.quadraticCurveTo(x,y-14,x+6,y-17);c.fill()}}
+ if(o.status){c.fillStyle='#fff';c.beginPath();c.arc(x+10,y-29,5.2,0,7);c.fill();c.fillStyle=STC[o.status]||STC.free;c.beginPath();c.arc(x+10,y-29,3.6,0,7);c.fill()}
+ if(o.voice){c.fillStyle='#00175A';c.beginPath();c.arc(x-11,y-29,6,0,7);c.fill();c.fillStyle='#fff';c.fillRect(x-12.5,y-33,3,5);c.fillRect(x-14,y-28,6,1.4)}
+ c.restore();
+}
+function tag(x,y,text,o={}){
+ ctx.font='700 12px Tajawal,sans-serif';const w=ctx.measureText(text).width+14;
+ ctx.fillStyle=o.me?'#0616C4':o.bot?'#8042EB':'rgba(255,255,255,.95)';rr(x-w/2,y-48,w,19,9.5);
+ ctx.fillStyle=o.me||o.bot?'#fff':'#0b1230';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,x,y-38);
+ if(o.say){ctx.font='500 13px Tajawal,sans-serif';const t=o.say.length>42?o.say.slice(0,40)+'…':o.say;const sw=Math.min(ctx.measureText(t).width+20,260);
+  ctx.fillStyle='#fff';ctx.strokeStyle='#c9cdea';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x-sw/2,y-86,sw,30,12);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x-6,y-57);ctx.lineTo(x+6,y-57);ctx.lineTo(x,y-51);ctx.fill();ctx.fillStyle='#0b1230';ctx.fillText(t,x,y-71,sw-12)}
+}
+function drawDesk(d,own){
+ ctx.fillStyle='#d9cfbf';rr(d.x,d.y,d.w,d.h,6);ctx.fillStyle='#f5efe5';rr(d.x+2,d.y+2,d.w-4,d.h-4,5);
+ const my=d.top?d.y+6:d.y+d.h-18;
+ ctx.fillStyle='#1f2747';rr(d.x+d.w/2-17,my,34,12,2);ctx.fillStyle='#3e4c8a';rr(d.x+d.w/2-15,my+2,30,8,1);
+ ctx.fillStyle='#2b3350';dot(d.seat.x,d.seat.y,9);ctx.fillStyle='#3b4570';dot(d.seat.x,d.seat.y,6);
+ if(own){const p=person(own);ctx.font='700 10.5px Tajawal,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  const t=String(p&&p.name||'').split(' ')[0];ctx.fillStyle=own===me.id?'#0616C4':(p&&p.look?p.look.shirt:'#8042EB');rr(d.x+d.w/2-28,(d.top?d.y+d.h-17:d.y+5),56,13,6);ctx.fillStyle='#fff';ctx.fillText(t,d.x+d.w/2,(d.top?d.y+d.h-10.5:d.y+11.5),52)}
+}
+function drawPlant(x,y){ctx.fillStyle='#b8865a';rr(x-9,y,18,14,3);ctx.fillStyle='#2f9e62';dot(x,y-4,11);ctx.fillStyle='#3fbf78';dot(x-5,y-8,6);dot(x+5,y-6,6)}
+function boardProgress(b){let n=0,d=0;(b&&b.stages||[]).forEach(s=>s.tasks.forEach(t=>{n++;if(t.done)d++}));return{n,d,p:n?Math.round(d/n*100):0}}
+function drawScene(t){
+ ctx.fillStyle='#eceef6';ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='#e1e4ef';ctx.lineWidth=1;ctx.beginPath();for(let x=0;x<W;x+=40){ctx.moveTo(x,0);ctx.lineTo(x,H)}for(let y=0;y<H;y+=40){ctx.moveTo(0,y);ctx.lineTo(W,y)}ctx.stroke();
+ ROOMS.forEach(r=>{ctx.fillStyle=r.c;ctx.fillRect(r.x,r.y,r.w,r.h)});
+ ctx.font='800 17px Tajawal,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='rgba(0,23,90,.55)';
+ ctx.fillText('مكتب مدير المشروع',192,40);ctx.fillText('الاستقبال',80,500);ctx.fillText('غرفة الاجتماعات',1204,40);ctx.fillText('الاستراحة',1204,556);ctx.fillText('لوحة التخطيط المشترك',1520,40);
+ PODS.forEach(p=>ctx.fillText(p.name,p.x+93,p.y-88));
+ // الاستقبال
+ ctx.fillStyle='#c8d0ee';rr(150,846,120,30,6);ctx.fillStyle='rgba(0,23,90,.5)';ctx.font='700 12px Tajawal,sans-serif';ctx.fillText('المدخل',210,861);
+ ctx.fillStyle='#b9c1e3';rr(14,630,30,96,4);ctx.fillStyle='#8d97c4';ctx.fillRect(28,634,2,88);ctx.fillStyle='rgba(0,23,90,.6)';ctx.fillText('المصعد',72,678);
+ ctx.fillStyle='#00175A';rr(120,580,180,46,12);ctx.fillStyle='#0616C4';rr(124,584,172,10,5);
+ ctx.fillStyle='#fff';ctx.font='800 13px Tajawal,sans-serif';ctx.fillText('DOMAINS',210,610);
+ ctx.fillStyle='#cfd5ef';rr(40,760,34,96,10);rr(300,760,34,96,10);
+ // المدير
+ ctx.fillStyle='#8b6b4a';rr(24,140,26,120,4);ctx.fillStyle='#c9a77d';for(let i=0;i<4;i++)rr(27,146+i*29,20,22,2);
+ // الاجتماعات
+ ctx.fillStyle='#6f5bb0';rr(1110,140,190,140,24);ctx.fillStyle='#8a76cc';rr(1116,146,178,128,20);
+ ctx.fillStyle='#2b3350';MEET_SEATS.forEach(s=>dot(s.x,s.y,10));
+ const sharing=V.channel==='meeting'&&(V.screen||[...V.pcs.values()].some(p=>p.video));
+ ctx.fillStyle=sharing?'#2fd28a':'#111833';rr(1130,16,150,10,3);ctx.fillStyle='rgba(0,23,90,.45)';ctx.font='700 11px Tajawal,sans-serif';ctx.fillText(sharing?'شاشة مشتركة الآن':'شاشة العرض',1205,60);
+ // الاستراحة
+ ctx.fillStyle='#c9b79f';rr(1336,560,44,200,6);ctx.fillStyle='#3b3b45';rr(1346,580,24,24,4);ctx.fillStyle='#e8e2d8';rr(1346,620,24,30,4);
+ ctx.fillStyle='#8042EB';rr(1060,800,170,46,14);ctx.fillStyle='#9a6cf0';rr(1066,806,158,20,10);
+ ctx.fillStyle='#b8865a';rr(1090,720,110,40,10);
+ // لوحة التخطيط المشترك
+ BOARDS.forEach(b=>{const pr=boardProgress(boards[b.id]);
+  ctx.globalAlpha=.16;ctx.fillStyle=b.c;rr(1560,b.y-62,150,124,16);ctx.globalAlpha=1;
+  ctx.fillStyle='#10183a';rr(1708,b.y-62,32,124,5);ctx.fillStyle=b.c;rr(1712,b.y-56,24,112,3);
+  ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillRect(1716,b.y+40,16,4);ctx.fillStyle='#fff';ctx.fillRect(1716,b.y+40,16*pr.p/100,4);
+  ctx.fillStyle='rgba(0,23,90,.75)';ctx.font='800 13px Tajawal,sans-serif';ctx.fillText(b.title,1630,b.y-44);
+  ctx.font='700 11px Tajawal,sans-serif';ctx.fillStyle='rgba(0,23,90,.55)';ctx.fillText(pr.n?pr.p+'% منجز · '+pr.n+' مهمة':'لا مهام بعد',1630,b.y+48)});
+ [[400,40],[1000,860],[400,860],[1000,300],[60,440],[330,440],[1360,470],[1050,560],[1420,860],[1420,40]].forEach(([x,y])=>drawPlant(x,y));
+ DESKS.forEach(d=>drawDesk(d,deskOwner(d)));
+ ctx.fillStyle='#00175A';WALLS.forEach(([x,y,w,h])=>ctx.fillRect(x,y,w,h));
+ ctx.fillStyle='rgba(6,22,196,.35)';GLASS.forEach(([x,y,w,h])=>ctx.fillRect(x,y,w,h));
+ if(me.desk==null&&joined&&me.name){ctx.save();ctx.globalAlpha=.5+.3*Math.sin(t*3);ctx.strokeStyle='#8042EB';ctx.lineWidth=2;ctx.setLineDash([5,4]);DESKS.forEach(d=>{if(!deskOwner(d))ctx.strokeRect(d.x-3,d.y-3,d.w+6,d.h+6)});ctx.restore()}
+}
+
+/* ================= الحركة ================= */
+const keys=new Set();let goal=null,guide=null;
+addEventListener('keydown',e=>{if(e.target.closest('input,select,textarea'))return;const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){keys.add(k);goal=null;e.preventDefault()}});
+addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+addEventListener('blur',()=>keys.clear());
+cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect();goal={x:(e.clientX-r.left-pad)/scale+cam.x,y:(e.clientY-r.top)/scale+cam.y};if(document.activeElement)document.activeElement.blur()});
+function stepMe(dt){
+ let vx=0,vy=0;
+ if(keys.has('arrowup')||keys.has('w'))vy-=1;if(keys.has('arrowdown')||keys.has('s'))vy+=1;
+ if(keys.has('arrowleft')||keys.has('a'))vx-=1;if(keys.has('arrowright')||keys.has('d'))vx+=1;
+ if(!vx&&!vy&&goal){const dx=goal.x-me.x,dy=goal.y-me.y,l=Math.hypot(dx,dy);if(l<4)goal=null;else{vx=dx/l;vy=dy/l}}
+ const l=Math.hypot(vx,vy);me.moving=l>0;if(!l)return false;
+ const sp=220*dt;vx=vx/l*sp;vy=vy/l*sp;const ox=me.x,oy=me.y;
+ if(!hits(me.x+vx,me.y,12))me.x+=vx;if(!hits(me.x,me.y+vy,12))me.y+=vy;
+ if(goal&&me.x===ox&&me.y===oy)goal=null;
+ return me.x!==ox||me.y!==oy;
+}
+function botRoute(b,to){
+ const d=deskOf(b.desk),c=d.colX,seat=d.seat,aisle={x:c,y:420};
+ let pts=[];
+ if(b.at==='desk')pts.push({x:c,y:seat.y},aisle);
+ if(b.at==='meeting')pts.push({x:1304,y:380},{x:1304,y:470},{x:1000,y:470},aisle);
+ if(b.at==='lounge')pts.push({x:1117,y:580},{x:1117,y:470},{x:1000,y:470},aisle);
+ const i=BOTS.indexOf(b);
+ if(to==='desk')pts.push(aisle,{x:c,y:seat.y},seat);
+ if(to==='meeting')pts.push({x:1000,y:470},{x:1304,y:470},{x:1304,y:380},MEET_SEATS[i]);
+ if(to==='lounge')pts.push({x:1000,y:470},{x:1117,y:470},{x:1117,y:580},{x:1110+i*70,y:660});
+ if(b.at===to)return;b.route=pts;b.at=to;
+}
+function stepBots(dt){const now=Date.now();BOTS.forEach(b=>{
+ if(b.route.length){const p=b.route[0],dx=p.x-b.x,dy=p.y-b.y,l=Math.hypot(dx,dy),sp=170*dt;b.moving=true;if(l<=sp){b.x=p.x;b.y=p.y;b.route.shift()}else{b.x+=dx/l*sp;b.y+=dy/l*sp}}else b.moving=false;
+ if(!b.route.length&&now>b.next&&!(cur&&cur.type==='person'&&cur.id===b.id)&&b.at!=='meeting'){b.next=now+45000+Math.random()*40000;botRoute(b,b.at==='desk'?'lounge':'desk');if(b.at==='lounge')b.next=now+18000}
+ if(b.say&&now>b.say.until)b.say=null;
+})}
+
+/* ================= الحضور ================= */
+let lastPos=0,posDirty=true;
+function sendPos(force){if(!joined||!me.name)return;const n=Date.now();if(!force&&(!posDirty||n-lastPos<70))return;lastPos=n;posDirty=false;
+ socket.emit('pos',{x:Math.round(me.x),y:Math.round(me.y),status:me.status,moving:me.moving,say:me.say})}
+
+/* ================= الوجهة القريبة ================= */
+let cur=null,curKey=null,dismissed=null;
+function findTarget(){
+ const z=zoneAt(me);
+ if(z==='meeting')return{type:'meeting',key:'meeting'};
+ if(z==='planning'){const b=boardAt(me);return b?{type:'board',id:b.id,key:'b:'+b.id}:null}
+ let best=null,bd=1e9;const cand=(d,t)=>{if(d<bd){bd=d;best=t}};
+ const rd=dist(me,RECEPT);if(rd<110)cand(rd,{type:'reception',key:'reception'});
+ BOTS.forEach(b=>{const d=dist(me,b);if(d<70)cand(d,{type:'person',id:b.id,key:'p:'+b.id})});
+ peers.forEach(p=>{if(p.uid&&p.uid!==me.id){const d=dist(me,p.pos);if(d<60)cand(d-25,{type:'person',id:p.uid,key:'p:'+p.uid})}});
+ DESKS.forEach(dk=>{const d=Math.min(Math.hypot(me.x-(dk.x+dk.w/2),me.y-(dk.y+dk.h/2)),dist(me,dk.seat)+10);if(d<80){const o=deskOwner(dk);
+  if(!o)cand(d+5,{type:'free',desk:dk.id,key:'f:'+dk.id});else if(o===me.id)cand(d+5,{type:'mine',desk:dk.id,key:'m:'+dk.id});else cand(d+5,{type:'person',id:o,key:'p:'+o})}});
+ return best;
+}
+
+/* ================= الحلقة ================= */
+let last=performance.now();
+function frame(now){
+ const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+ const active=me.name&&$('#onb').hidden;
+ if(active){const was=me.moving;if(stepMe(dt)||was!==me.moving)posDirty=true}
+ stepBots(dt);sendPos();
+ if(me.say&&Date.now()-me.say.t>6000){me.say=null;posDirty=true}
+ peers.forEach(p=>{p.pos.x+=(p.x-p.pos.x)*Math.min(1,dt*10);p.pos.y+=(p.y-p.pos.y)*Math.min(1,dt*10)});
+ $('#onCount').textContent=1+onlineUids().size-(onlineUids().has(me.id)?1:0);
+ voiceTick();
+ const panelOpen=!panel.classList.contains('hide')&&$('#board').hidden;
+ const padT=(panelOpen&&vw>700)?394:0;pad+=(padT-pad)*Math.min(1,dt*8);if(Math.abs(padT-pad)<.5)pad=padT;fitScale();
+ const viewW=(vw-pad)/scale,viewH=vh/scale;
+ cam.x=W<=viewW?(W-viewW)/2:clamp(me.x-viewW/2,0,W-viewW);cam.y=H<=viewH?(H-viewH)/2:clamp(me.y-viewH/2,0,H-viewH);
+ ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#f4f5fb';ctx.fillRect(0,0,cv.width,cv.height);
+ ctx.setTransform(dpr*scale,0,0,dpr*scale,(pad-cam.x*scale)*dpr,-cam.y*scale*dpr);
+ drawScene(t);
+ if(guide){const g=guide;if(Date.now()>g.until||dist(me,g)<45)guide=null;else{ctx.save();ctx.strokeStyle='#8042EB';ctx.lineWidth=4;ctx.setLineDash([10,9]);ctx.lineDashOffset=-t*40;ctx.beginPath();ctx.moveTo(me.x,me.y+10);ctx.lineTo(g.x,g.y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(128,66,235,.25)';dot(g.x,g.y,22+4*Math.sin(t*5));ctx.fillStyle='#8042EB';dot(g.x,g.y,8);ctx.restore()}}
+ const ents=[];
+ ents.push({y:RECEPT.y-16,draw:()=>drawAvatar(ctx,RECEPT.x,RECEPT.y-16,{gender:'f',shirt:'#0616C4',hair:'#00175A',skin:'#f6d6bd',style:'hijab'},{status:'free'}),tag:()=>tag(RECEPT.x,RECEPT.y-16,'نور · الاستقبال (AI)',{bot:true})});
+ BOTS.forEach(b=>ents.push({y:b.y,draw:()=>drawAvatar(ctx,b.x,b.y,b.look,{t,moving:b.moving,status:b.status}),tag:()=>tag(b.x,b.y,b.name,{bot:true,say:b.say&&b.say.text})}));
+ peers.forEach((p,sid)=>{if(p.uid===me.id&&sid===socket.id)return;const look=p.look&&p.look.shirt?p.look:{gender:'m',shirt:'#3d3d4d',hair:'#1d140f',skin:'#e8b98f',style:'short'};
+  ents.push({y:p.pos.y,draw:()=>drawAvatar(ctx,p.pos.x,p.pos.y,look,{t,moving:p.moving,status:p.status,voice:!!p.voice,speaking:V.speaking.has(sid)}),tag:()=>tag(p.pos.x,p.pos.y,p.name||'زميل',{say:p.say&&p.say.text})})});
+ if(me.name)ents.push({y:me.y,draw:()=>drawAvatar(ctx,me.x,me.y,me.look,{t,moving:me.moving,status:me.status,me:true,voice:!!V.channel,speaking:V.speaking.has('me')}),tag:()=>tag(me.x,me.y,me.name+' (أنت)',{me:true,say:me.say&&me.say.text})});
+ ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());ents.forEach(e=>e.tag());
+ if(active){const tg=findTarget(),k=tg?tg.key:null;if(k!==curKey){curKey=k;if(k&&k===dismissed){}else{dismissed=null;tg?openTarget(tg):closeAll()}}}
+ requestAnimationFrame(frame);
+}
+
+/* ================= اللوحات الجانبية ================= */
+const panel=$('#panel');
+function closePanel(){if(pair){socket.emit('pair:close');pair=null}cur=null;panel.classList.add('hide')}
+function closeAll(){closePanel();closeBoard()}
+function toast(text,actions,ms=5200){const d=document.createElement('div');d.className='toast';d.textContent=text;
+ if(actions){const w=document.createElement('div');actions.forEach(([l,f],i)=>{const b=document.createElement('button');b.className='btn '+(i?'ghost':'ok');b.textContent=l;b.onclick=()=>{f();d.remove()};w.appendChild(b)});d.appendChild(w)}
+ $('#toasts').prepend(d);setTimeout(()=>d.remove(),ms)}
+const stLabel={free:'متاح',busy:'مشغول',focus:'في وضع التركيز'};
+function head(color,name,sub){return`<div class="ph"><span class="pdot" style="background:${esc(color)}"></span><div><b>${esc(name)}</b><small id="phSub">${esc(sub)}</small></div><button class="x" data-x aria-label="إغلاق">×</button></div>`}
+function bindCommon(root=panel){root.querySelector('[data-x]').onclick=()=>{dismissed=curKey;closeAll()};
+ root.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{root.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));root.querySelectorAll('.pane').forEach(p=>p.hidden=p.dataset.pane!==b.dataset.tab)})}
+function renderMsgs(el,list,nameOf){if(!el)return;const atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40;
+ el.innerHTML=list.length?list.map(m=>`<div class="m ${m.by===me.id?'me':''}"><small>${esc(m.by===me.id?'أنت':nameOf(m))}</small>${esc(m.text)}</div>`).join(''):'<div class="m sys">لا رسائل بعد. ابدأ الحديث.</div>';
+ if(atBottom||list.length<3)el.scrollTop=el.scrollHeight}
+
+function openTarget(tg){
+ if(tg.type==='board'){closePanel();return openBoard(tg.id)}
+ closeBoard();if(pair){socket.emit('pair:close');pair=null}
+ cur=tg;panel.classList.remove('hide');
+ if(tg.type==='person')return personPanel(tg.id);
+ if(tg.type==='free'){const d=deskOf(tg.desk);panel.innerHTML=head('#c9cdea','مكتب فارغ',d.zone)+`<div class="big"><p>${me.desk?'لديك مكتب بالفعل. يمكنك الانتقال إلى هذا المكتب بدلاً منه.':'هذا المكتب متاح. احجزه ليصبح مكتبك، فيجدك الزملاء عنده ويرون مساحتكم المشتركة.'}</p><button class="btn" id="claim">${me.desk?'انتقل إلى هذا المكتب':'هذا مكتبي'}</button></div>`;bindCommon();
+  $('#claim').onclick=()=>{me.desk=d.id;saveProfile();toast('صار مكتبك في '+d.zone);curKey=null};return}
+ if(tg.type==='mine'){const d=deskOf(tg.desk);panel.innerHTML=head(me.look.shirt,'مكتبك',d.zone)+`<div class="big"><p>عندما يصل زميل إلى مكتبك تنفتح بينكما محادثة ومساحة مشتركة فيها ما اتفقتما عليه والمهام والملفات، ويمكنه أن يتصل بك صوتياً.</p><p>غيّر حالتك من الشريط العلوي: «تركيز» يمنع الزيارات المفاجئة ويطلب من الزائر أن يطرق الباب.</p><button class="btn ghost" id="leave">اترك هذا المكتب</button></div>`;bindCommon();
+  $('#leave').onclick=()=>{me.desk=null;saveProfile();curKey=null};return}
+ if(tg.type==='reception')return receptionPanel();
+ if(tg.type==='meeting')return meetingPanel();
+}
+
+/* --- مكتب زميل --- */
+let pair=null;
+function personSub(id){const p=person(id)||{};const bot=id.startsWith('bot-');const pr=peerOfUid(id);const online=bot||!!pr;const st=bot?p.status:pr&&pr.status;return{text:(p.role||'عضو الفريق')+' · '+(online?(stLabel[st]||'متاح'):'غير متصل الآن'),online,st,bot}}
+function refreshPersonHead(){if(!cur||cur.type!=='person')return;const s=$('#phSub');if(s)s.textContent=personSub(cur.id).text}
+function personPanel(id){
+ const p=person(id)||{name:'زميل',look:{shirt:'#888'}};const info=personSub(id);
+ pair={id,key:null,doc:{agreements:[],tasks:[],files:[]},msgs:[]};
+ panel.innerHTML=head(p.look&&p.look.shirt,p.name,info.text)+
+ `<div class="tabs"><button data-tab="chat" class="on">المحادثة</button><button data-tab="shared">مساحتنا المشتركة</button></div>
+ <div class="pane" data-pane="chat">${info.st==='focus'?`<div class="note">${esc(p.name)} في وضع التركيز. يمكنك ترك رسالة أو أن تطرق الباب.<div style="margin-top:6px"><button class="btn vi" id="knock" style="height:34px">اطرق الباب</button></div></div>`:''}${!info.online?`<div class="note">غير متصل الآن. اترك رسالة وسيجدها عند عودته إلى المكتب.</div>`:''}
+ ${info.online&&!info.bot?`<div class="row"><button class="btn ok" id="callBtn">📞 مكالمة صوتية</button></div>`:''}
+ <div class="msgs" id="msgs"></div><div class="typing" id="typing" hidden>يكتب…</div>
+ <form class="send" id="chatF"><input id="chatIn" placeholder="اكتب رسالة…" autocomplete="off"><button class="btn">إرسال</button></form></div>
+ <div class="pane" data-pane="shared" hidden><div class="scrollp">
+  <div class="sec"><h4>اتفقنا على</h4><ul id="agr"></ul><form data-k="agr:add"><input placeholder="أضف نقطة اتفاق"><button class="btn">+</button></form></div>
+  <div class="sec"><h4>مهام مشتركة</h4><ul id="tsk"></ul><form data-k="task:add"><input placeholder="مهمة جديدة"><select class="in" style="flex:0 0 auto"><option value="me">عليّ</option><option value="you">على ${esc(String(p.name).split(' ')[0])}</option></select><button class="btn">+</button></form></div>
+  <div class="sec"><h4>ملفات نعمل عليها</h4><ul id="fil"></ul><form data-k="file:add"><input placeholder="اسم الملف"><input placeholder="https://" dir="ltr"><button class="btn">+</button></form></div>
+ </div></div>`;
+ bindCommon();
+ const kn=$('#knock');if(kn)kn.onclick=()=>{socket.emit('knock',{to:id});toast('طرقت الباب على '+p.name);kn.disabled=true};
+ const cb=$('#callBtn');if(cb)cb.onclick=()=>{socket.emit('call:invite',{to:id});V.pairCall='pair:'+pair.key;V.pairName=p.name;toast('يجري الاتصال بـ'+p.name+'…')};
+ socket.emit('pair:open',{other:id},r=>{if(!r||!pair||pair.id!==id)return;pair.key=r.key;pair.doc=r.doc;pair.msgs=r.msgs||[];drawPairMsgs();renderShared()});
+ $('#chatF').onsubmit=e=>{e.preventDefault();const inp=$('#chatIn'),text=inp.value.trim().slice(0,1000);if(!text)return;inp.value='';
+  socket.emit('pair:msg',{other:id,text});if(info.bot){const ty=$('#typing');if(ty)ty.hidden=false;const b=BOTS.find(x=>x.id===id);if(b)b.status='busy';socket.emit('ai:bot',{bot:id})}};
+ panel.querySelectorAll('form[data-k]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const ins=f.querySelectorAll('input');const v=ins[0].value.trim();if(!v)return;
+  const op={type:f.dataset.k};if(op.type==='file:add'){op.title=v;op.url=ins[1].value.trim()}else op.text=v;
+  if(op.type==='task:add')op.owner=f.querySelector('select').value;ins.forEach(i=>i.value='');socket.emit('pair:op',{other:id,op})});
+ setTimeout(()=>{const i=$('#chatIn');if(i&&matchMedia('(min-width:701px)').matches)i.focus({preventScroll:true})},50);
+}
+function drawPairMsgs(){if(!pair)return;renderMsgs($('#msgs'),pair.msgs.slice(-80),m=>{const q=person(m.by);return q?q.name:'زميل'})}
+function renderShared(){if(!pair||!$('#agr'))return;const d=pair.doc,p=person(pair.id)||{name:'زميل'};
+ const who=o=>o===me.id?'عليّ':'على '+String(p.name).split(' ')[0];
+ $('#agr').innerHTML=d.agreements.length?d.agreements.map(a=>`<li><span>${esc(a.text)}</span><button data-del="${esc(a.id)}" aria-label="حذف">×</button></li>`).join(''):'<div class="empty">لم تسجّلا أي اتفاق بعد.</div>';
+ $('#tsk').innerHTML=d.tasks.length?d.tasks.map(a=>`<li class="${a.done?'done':''}"><input type="checkbox" data-tog="${esc(a.id)}" ${a.done?'checked':''} style="height:18px;flex:none"><span>${esc(a.text)}</span><em>${esc(who(a.owner))}</em><button data-del="${esc(a.id)}" aria-label="حذف">×</button></li>`).join(''):'<div class="empty">لا مهام مشتركة.</div>';
+ $('#fil').innerHTML=d.files.length?d.files.map(a=>`<li><span>${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>`:esc(a.title)}</span><button data-del="${esc(a.id)}" aria-label="حذف">×</button></li>`).join(''):'<div class="empty">لا ملفات بعد. أضف اسم الملف ورابطه.</div>';
+ panel.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>socket.emit('pair:op',{other:pair.id,op:{type:'del',id:b.dataset.del}}));
+ panel.querySelectorAll('[data-tog]').forEach(b=>b.onchange=()=>socket.emit('pair:op',{other:pair.id,op:{type:'task:toggle',id:b.dataset.tog,done:b.checked}}));
+}
+
+/* --- الاستقبال: نور --- */
+let recHist=[];
+function receptionPanel(){
+ panel.innerHTML=head('#0616C4','نور · موظفة الاستقبال','مرشدة المكتب (ذكاء اصطناعي)')+`<div class="pane"><div class="msgs" id="rmsgs"></div><div class="typing" id="rty" hidden>تكتب…</div>
+ <div class="chips">${['خذني إلى غرفة الاجتماعات','أين لوحة مسار التطوع؟','أين أجد أحمد؟','كيف يعمل الصوت؟'].map(q=>`<button>${q}</button>`).join('')}</div>
+ <form class="send" id="rF"><input id="rIn" placeholder="اسأل نور…" autocomplete="off"><button class="btn">إرسال</button></form></div>`;
+ bindCommon();
+ if(!recHist.length)recHist.push({me:false,text:`أهلاً ${me.name}! أنا نور، أرشدك في مكتب DOMAINS. ${me.desk?'':'لم تحجز مكتباً بعد: المكاتب الفارغة محاطة بإطار بنفسجي، امشِ إلى أحدها واضغط «هذا مكتبي». '}اسألني عن أي مكان أو زميل وسأرسم لك الطريق.`});
+ const draw=()=>renderMsgs($('#rmsgs'),recHist.map(m=>({by:m.me?me.id:'nour',text:m.text})),()=>'نور');draw();
+ const ask=q=>{recHist.push({me:true,text:q});draw();$('#rty').hidden=false;
+  const ctxt='الأشخاص:\n'+[...BOTS.map(b=>`${b.name} — ${b.role} — مكتبه في ${deskOf(b.desk).zone}`),...Object.entries(profiles).filter(([i])=>i!==me.id).map(([i,p])=>`${p.name} — ${p.role||'عضو'} — ${p.desk?'مكتبه في '+deskOf(p.desk).zone:'بلا مكتب'}${peerOfUid(i)?' (متصل الآن)':' (غير متصل)'}`)].join('\n')+`\nالزائر الحالي: ${me.name}${me.desk?' ومكتبه في '+deskOf(me.desk).zone:' ولم يحجز مكتباً بعد'}.`;
+  const done=(text,g)=>{if(g){const r=resolvePlace(g);if(r)guide={...r,until:Date.now()+25000}}recHist.push({me:false,text:text||offlineNour(q)});const ty=$('#rty');if(ty)ty.hidden=true;if($('#rmsgs'))draw()};
+  if(!AI)return setTimeout(()=>done(null),300);
+  socket.timeout(30000).emit('ai:nour',{history:recHist.slice(-12),context:ctxt},(err,r)=>done(!err&&r&&r.text,!err&&r&&r.guide))};
+ panel.querySelectorAll('.chips button').forEach(b=>b.onclick=()=>ask(b.textContent));
+ $('#rF').onsubmit=e=>{e.preventDefault();const v=$('#rIn').value.trim();if(!v)return;$('#rIn').value='';ask(v)};
+}
+function resolvePlace(t){t=String(t).trim();if(PLACES[t])return{...PLACES[t]};if(t==='my_desk'&&me.desk){const d=deskOf(me.desk);return{x:d.seat.x,y:d.seat.y,n:'مكتبك'}}
+ const all=[...BOTS.map(b=>[b.id,b]),...Object.entries(profiles)];for(const [id,p] of all){const nm=String(p.name||'');if(nm&&(t.includes(nm.split(' ')[0])||nm.includes(t))){const bb=BOTS.find(b=>b.id===id);if(bb)return{x:bb.x,y:bb.y+30,n:nm};const pr=peerOfUid(id);if(pr)return{x:pr.pos.x,y:pr.pos.y,n:nm};if(p.desk){const d=deskOf(p.desk);return{x:d.seat.x,y:d.seat.y,n:nm}}}}
+ for(const k in PLACES)if(t.includes(PLACES[k].n)||PLACES[k].n.includes(t))return{...PLACES[k]};return null}
+function offlineNour(q){const go=k=>{guide={...PLACES[k],until:Date.now()+25000}};
+ if(q.includes('اجتماع')){go('meeting');return 'اتبع الخط البنفسجي إلى غرفة الاجتماعات. عند دخولها يعمل الصوت تلقائياً بين الحاضرين.'}
+ for(const b of BOARDS)if(q.includes(b.title.replace('مسار ',''))&&q.includes('لوحة')){go('board_'+b.id);return 'اتبع الخط البنفسجي إلى '+b.title+' في غرفة لوحة التخطيط المشترك.'}
+ if(q.includes('لوحة')||q.includes('تخطيط')){go('planning');return 'اتبع الخط البنفسجي إلى غرفة لوحة التخطيط المشترك.'}
+ if(q.includes('أحمد')){const g=resolvePlace('أحمد');if(g)guide={...g,until:Date.now()+25000};return 'أحمد في مسار التدريب، اتبع الخط البنفسجي.'}
+ if(q.includes('صوت'))return 'الصوت يعمل تلقائياً عند دخول غرفة الاجتماعات أو الوقوف أمام إحدى لوحات التخطيط، ويسمعك فقط من معك في المكان نفسه. ولمكالمة ثنائية اقترب من مكتب زميلك واضغط «مكالمة صوتية».';
+ return 'امشِ بالأسهم أو انقر على الأرض. اقترب من مكتب أي زميل لتفتح محادثة ومساحة مشتركة، وادخل غرفة الاجتماعات أو قف أمام لوحة تخطيط للحديث مع الفريق صوتياً.'}
+
+/* --- غرفة الاجتماعات --- */
+function meetingPanel(){
+ panel.innerHTML=head('#8042EB','غرفة الاجتماعات','الصوت يعمل تلقائياً هنا')+`<div class="tabs"><button data-tab="talk" class="on">النقاش</button><button data-tab="min">المحاضر</button></div>
+ <div class="pane" data-pane="talk"><div class="note">كل من في الغرفة يسمع الآخرين ويرى هذا النقاش المكتوب. لمشاركة شاشتك استخدم الزر في شريط الصوت أسفل الشاشة.</div>
+ <div class="row"><button class="btn ghost" id="inv">${BOTS.some(b=>b.at==='meeting')?'أعِد الزملاء التجريبيين':'ادعُ الزملاء التجريبيين'}</button><button class="btn ghost" id="newM">اجتماع جديد</button></div>
+ <div class="msgs" id="mmsgs"></div><div class="typing" id="mty" hidden>…</div>
+ <div class="row" style="padding-top:0"><button class="btn vi" id="mkMin">أنشئ المحضر ووزّع المهام</button></div>
+ <form class="send" id="mF"><input id="mIn" placeholder="اكتب للحاضرين…" autocomplete="off"><button class="btn">إرسال</button></form></div>
+ <div class="pane" data-pane="min" hidden><div class="scrollp" id="minList"></div></div>`;
+ bindCommon();drawMeet();drawMin();
+ $('#inv').onclick=e=>{const back=BOTS.some(b=>b.at==='meeting');BOTS.forEach(b=>botRoute(b,back?'desk':'meeting'));e.target.textContent=back?'ادعُ الزملاء التجريبيين':'أعِد الزملاء التجريبيين';if(!back)toast('أحمد ولين في طريقهما إلى غرفة الاجتماعات')};
+ $('#newM').onclick=()=>{socket.emit('meeting:new');toast('بدأ اجتماع جديد')};
+ $('#mF').onsubmit=e=>{e.preventDefault();const v=$('#mIn').value.trim().slice(0,1000);if(!v)return;$('#mIn').value='';me.say={text:v,t:Date.now()};posDirty=true;socket.emit('meeting:msg',{text:v});
+  const here=BOTS.filter(b=>b.at==='meeting'&&!b.route.length).map(b=>b.id);if(here.length)setTimeout(()=>socket.emit('ai:meetbots',{bots:here}),400)};
+ $('#mkMin').onclick=()=>{const b=$('#mkMin');b.disabled=true;b.textContent='يُكتب المحضر…';
+  socket.timeout(60000).emit('minutes:make',{},(err,r)=>{b.disabled=false;b.textContent='أنشئ المحضر ووزّع المهام';
+   if(err||!r)return toast('تعذّر إنشاء المحضر، حاول مرة أخرى');if(r.error)return toast(r.error);
+   toast('كُتب المحضر'+(r.distributed?' ووُزّعت '+r.distributed+' مهام على مكاتب أصحابها':''));const tb=panel.querySelector('[data-tab=min]');if(tb)tb.click()})};
+}
+function drawMeet(){renderMsgs($('#mmsgs'),meet.msgs.filter(m=>(m.t||0)>=(meet.startedAt||0)),m=>String(m.name||'زميل'))}
+function drawMin(){const el=$('#minList');if(!el)return;el.innerHTML=minutes.length?minutes.map(m=>`<div class="card"><b>${esc(m.title||'محضر اجتماع')}</b><small>${esc(new Date(m.t||0).toLocaleString('ar-SY-u-nu-latn',{dateStyle:'medium',timeStyle:'short'}))} · الحاضرون: ${esc((m.attendees||[]).join('، '))}</small><p style="margin:6px 0">${esc(m.summary||'')}</p>${(m.decisions||[]).length?`<b style="font-size:13.5px">القرارات</b><ul>${m.decisions.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`:''}${(m.actions||[]).length?`<b style="font-size:13.5px">المهام</b><ul>${m.actions.map(a=>`<li>${esc(a.who)}: ${esc(a.what)}${a.due?' · '+esc(a.due):''}</li>`).join('')}</ul>`:''}</div>`).join(''):'<div class="empty">لا محاضر بعد. ناقشوا ثم اضغطوا «أنشئ المحضر».</div>'}
+
+/* ================= لوحة التخطيط المشترك ================= */
+let curBoard=null,boardPending=false;
+const boardEl=$('#board');
+function openBoard(id){cur={type:'board',id};curBoard=id;boardEl.hidden=false;renderBoard(true)}
+function closeBoard(){if(!curBoard)return;curBoard=null;boardEl.hidden=true;boardEl.innerHTML='';if(cur&&cur.type==='board')cur=null}
+function owners(){const s=new Set([me.name,...BOTS.map(b=>b.name),...Object.values(profiles).map(p=>p.name)].filter(Boolean));return[...s]}
+function stageState(s){const n=s.tasks.length,d=s.tasks.filter(t=>t.done).length,late=s.tasks.some(t=>!t.done&&t.due&&t.due<todayStr());
+ if(!n)return['لم تبدأ','#9aa3c9',0];if(d===n)return['مكتملة','#18a864',100];if(late)return['متأخرة','#e5484d',Math.round(d/n*100)];return['قيد التنفيذ','#0616C4',Math.round(d/n*100)]}
+function renderBoard(force){
+ const b=boards[curBoard];if(!b)return;
+ const ae=document.activeElement;if(!force&&ae&&boardEl.contains(ae)&&ae.tagName==='INPUT'&&ae.type!=='checkbox'&&ae.value){boardPending=true;return}
+ boardPending=false;
+ const def=BOARDS.find(x=>x.id===b.id)||{c:'#0616C4'};const pr=boardProgress(b);let late=0;b.stages.forEach(s=>s.tasks.forEach(t=>{if(!t.done&&t.due&&t.due<todayStr())late++}));
+ const here=[me.name,...[...peers.values()].filter(p=>{const bb=boardAt(p.pos);return bb&&bb.id===b.id}).map(p=>p.name)];
+ const C=2*Math.PI*22,own=owners();
+ const opt=v=>`<option value="">بلا مسؤول</option>`+own.concat(v&&!own.includes(v)?[v]:[]).map(n=>`<option ${n===v?'selected':''}>${esc(n)}</option>`).join('');
+ boardEl.innerHTML=`<div class="bh" style="background:linear-gradient(90deg,var(--ocean),${esc(def.c)})">
+  <svg class="ring" viewBox="0 0 56 56"><circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="6"/><circle cx="28" cy="28" r="22" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pr.p/100)}" transform="rotate(-90 28 28)"/><text x="28" y="33" text-anchor="middle" fill="#fff" font-size="14" font-weight="800" font-family="Tajawal">${pr.p}%</text></svg>
+  <div><h2>${esc(b.title)}</h2><small>لوحة التخطيط المشترك · كل من يقف أمامها يراها ويسمع الآخرين</small></div>
+  <div class="bstats"><div><b>${pr.n}</b>مهمة</div><div><b>${pr.d}</b>منجزة</div><div><b style="${late?'color:#ffc9cb':''}">${late}</b>متأخرة</div></div>
+  <div class="bwho">🎙 أمام اللوحة الآن: ${esc(here.join('، '))}</div>
+  <button class="x" data-x aria-label="إغلاق">×</button></div>
+ <div class="kpis">${b.kpis.map(k=>{const p=k.target?Math.min(100,Math.round(k.current/k.target*100)):0;return`<div class="kpi"><button class="del" data-kdel="${esc(k.id)}" aria-label="حذف">×</button><b>${esc(k.name)}</b><div class="bar"><i style="width:${p}%"></i></div><div style="display:flex;align-items:center;gap:6px"><input type="number" min="0" value="${+k.current||0}" data-kset="${esc(k.id)}" aria-label="القيمة الحالية"> / ${+k.target||0} ${esc(k.unit||'')} <span style="margin-inline-start:auto;font-weight:800">${p}%</span></div></div>`}).join('')}
+  <form class="kpi add" id="kAdd"><input placeholder="مؤشر جديد" required><input type="number" min="0" placeholder="المستهدف" style="width:90px;flex:none" required><input placeholder="الوحدة" style="width:70px;flex:none"><button class="btn" style="height:32px">+</button></form></div>
+ <div class="cols">${b.stages.map(s=>{const [lbl,col,pct]=stageState(s);return`<div class="col"><div class="colh"><input value="${esc(s.title)}" data-sren="${esc(s.id)}" aria-label="اسم المرحلة"><em style="background:${col}">${lbl}</em><button class="del" data-sdel="${esc(s.id)}" aria-label="حذف المرحلة">×</button></div><div class="cbar"><i style="width:${pct}%"></i></div>
+  <div class="tasks">${s.tasks.map(t=>{const lt=!t.done&&t.due&&t.due<todayStr();return`<div class="task ${t.done?'done':''} ${lt?'late':''}"><input type="checkbox" ${t.done?'checked':''} data-tdone="${esc(s.id)}|${esc(t.id)}" aria-label="إنجاز"><span class="tt">${esc(t.text)}</span><button class="del" data-tdel="${esc(s.id)}|${esc(t.id)}" aria-label="حذف">×</button>
+   <div class="meta"><select data-town="${esc(s.id)}|${esc(t.id)}" aria-label="المسؤول">${opt(t.owner)}</select><input type="date" value="${esc(t.due||'')}" data-tdue="${esc(s.id)}|${esc(t.id)}" aria-label="الموعد">${lt?'<span class="late-t">متأخرة</span>':''}</div></div>`}).join('')||'<div class="empty" style="padding:4px">لا مهام في هذه المرحلة.</div>'}</div>
+  <form class="addt" data-tadd="${esc(s.id)}"><input placeholder="مهمة جديدة" required><button class="btn">+</button></form></div>`}).join('')}
+  <div class="col new"><form id="sAdd"><input placeholder="مرحلة جديدة" required><button class="btn">+</button></form></div></div>`;
+ const op=o=>socket.emit('board:op',{id:b.id,op:o});
+ boardEl.querySelector('[data-x]').onclick=()=>{dismissed=curKey;closeBoard()};
+ boardEl.querySelectorAll('[data-tdone]').forEach(e=>e.onchange=()=>{const [sid,tid]=e.dataset.tdone.split('|');op({type:'task:update',sid,tid,patch:{done:e.checked}})});
+ boardEl.querySelectorAll('[data-tdel]').forEach(e=>e.onclick=()=>{const [sid,tid]=e.dataset.tdel.split('|');op({type:'task:del',sid,tid})});
+ boardEl.querySelectorAll('[data-town]').forEach(e=>e.onchange=()=>{const [sid,tid]=e.dataset.town.split('|');op({type:'task:update',sid,tid,patch:{owner:e.value}})});
+ boardEl.querySelectorAll('[data-tdue]').forEach(e=>e.onchange=()=>{const [sid,tid]=e.dataset.tdue.split('|');op({type:'task:update',sid,tid,patch:{due:e.value}})});
+ boardEl.querySelectorAll('[data-tadd]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const i=f.querySelector('input');const v=i.value.trim();if(v){i.value='';op({type:'task:add',sid:f.dataset.tadd,text:v})}});
+ boardEl.querySelectorAll('[data-sren]').forEach(e=>e.onchange=()=>op({type:'stage:rename',sid:e.dataset.sren,title:e.value}));
+ boardEl.querySelectorAll('[data-sdel]').forEach(e=>e.onclick=()=>{const s=b.stages.find(x=>x.id===e.dataset.sdel);if(s&&s.tasks.length&&!e.dataset.sure){e.dataset.sure=1;e.textContent='تأكيد؟';e.style.color='#e5484d';return}op({type:'stage:del',sid:e.dataset.sdel})});
+ boardEl.querySelectorAll('[data-kset]').forEach(e=>e.onchange=()=>op({type:'kpi:set',kid:e.dataset.kset,current:e.value}));
+ boardEl.querySelectorAll('[data-kdel]').forEach(e=>e.onclick=()=>op({type:'kpi:del',kid:e.dataset.kdel}));
+ $('#sAdd').onsubmit=e=>{e.preventDefault();const i=e.target.querySelector('input');if(i.value.trim()){op({type:'stage:add',title:i.value.trim()});i.value=''}};
+ $('#kAdd').onsubmit=e=>{e.preventDefault();const [n,tg,u]=e.target.querySelectorAll('input');op({type:'kpi:add',name:n.value.trim(),target:tg.value,unit:u.value.trim()});e.target.reset()};
+}
+boardEl.addEventListener('focusout',()=>setTimeout(()=>{if(boardPending&&curBoard)renderBoard()},0));
+
+/* ================= الصوت ومشاركة الشاشة (WebRTC) ================= */
+const V={channel:null,want:null,local:null,muted:false,screen:null,pcs:new Map(),speaking:new Set(),levels:new Map(),actx:null,pairCall:null,pairName:'',optOut:null,changeAt:0,screens:new Set()};
+const chName=c=>!c?'':c==='meeting'?'غرفة الاجتماعات':c.startsWith('board:')?'لوحة '+((BOARDS.find(b=>'board:'+b.id===c)||{}).title||''):'مكالمة مع '+V.pairName;
+function desiredChannel(){if(!joined||!me.name||!$('#onb').hidden)return null;const z=zoneAt(me);let c=null;
+ if(z==='meeting')c='meeting';else if(z==='planning'){const b=boardAt(me);if(b)c='board:'+b.id}
+ if(c){if(V.optOut===c)return V.pairCall;V.optOut=null;return c}V.optOut=null;return V.pairCall}
+function voiceTick(){const want=desiredChannel();
+ if(want!==V.want){V.want=want;V.changeAt=Date.now()+350}
+ if(V.want!==V.channel&&Date.now()>V.changeAt){if(V.want)voiceJoin(V.want);else voiceLeave()}
+ V.levels.forEach((a,id)=>{a.an.getByteTimeDomainData(a.buf);let s=0;for(let i=0;i<a.buf.length;i+=4){const v=(a.buf[i]-128)/128;s+=v*v}const rms=Math.sqrt(s/(a.buf.length/4));
+  a.lvl=a.lvl*.8+rms*.2;const on=a.lvl>.025&&!(id==='me'&&V.muted);if(on!==V.speaking.has(id)){on?V.speaking.add(id):V.speaking.delete(id);vbarDirty=true}});
+ if(vbarDirty)renderVbar()}
+let vbarDirty=false,joining=false;
+async function voiceJoin(ch){if(joining)return;joining=true;
+ if(V.channel)voiceLeave(true);
+ try{if(!V.local)V.local=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,sampleRate:48000}});
+  V.local.getAudioTracks().forEach(t=>t.enabled=!V.muted);watchLevel('me',V.local)}
+ catch(e){V.local=null;toast('لم يُسمح باستخدام الميكروفون. ستسمع الآخرين فقط؛ اسمح بالميكروفون من إعدادات المتصفح ثم أعد الدخول.')}
+ joining=false;if(V.want!==ch)return;
+ V.channel=ch;socket.emit('voice:join',{channel:ch});vbarDirty=true;renderVbar();
+ if(ch.startsWith('pair:'))toast('🎙 بدأت '+chName(ch))}
+function voiceLeave(keepMic){if(V.channel)socket.emit('voice:leave');
+ if(V.screen)stopScreen(true);
+ [...V.pcs.keys()].forEach(dropPeer);V.channel=null;V.screens.clear();hideScreen();
+ if(!keepMic&&V.local){V.local.getTracks().forEach(t=>t.stop());V.local=null;V.levels.delete('me');V.speaking.delete('me')}
+ vbarDirty=true;renderVbar()}
+function watchLevel(id,stream){try{V.actx=V.actx||new (window.AudioContext||window.webkitAudioContext)();if(V.actx.state==='suspended')V.actx.resume().catch(()=>{});
+ const src=V.actx.createMediaStreamSource(stream),an=V.actx.createAnalyser();an.fftSize=512;src.connect(an);V.levels.set(id,{an,buf:new Uint8Array(an.fftSize),lvl:0,src})}catch(e){}}
+function tune(pc){pc.getSenders().forEach(s=>{if(!s.track)return;const p=s.getParameters();if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+ if(s.track.kind==='audio')p.encodings[0].maxBitrate=64000;else{p.encodings[0].maxBitrate=2500000;p.degradationPreference='maintain-resolution'}s.setParameters(p).catch(()=>{})})}
+function makePC(id){let p=V.pcs.get(id);if(p)return p;
+ const pc=new RTCPeerConnection({iceServers:ICE});
+ p={pc,id,polite:socket.id>id,making:false,ignore:false,audio:null,video:null,screenSender:null};V.pcs.set(id,p);
+ if(V.local)V.local.getAudioTracks().forEach(t=>pc.addTrack(t,V.local));else pc.addTransceiver('audio',{direction:'recvonly'});
+ if(V.screen)V.screen.getVideoTracks().forEach(t=>p.screenSender=pc.addTrack(t,V.screen));
+ pc.onnegotiationneeded=async()=>{try{p.making=true;await pc.setLocalDescription();socket.emit('voice:signal',{to:id,data:{desc:pc.localDescription}})}catch(e){console.warn(e)}finally{p.making=false}};
+ pc.onicecandidate=({candidate})=>{if(candidate)socket.emit('voice:signal',{to:id,data:{cand:candidate}})};
+ pc.ontrack=({track,streams})=>{const st=streams[0]||new MediaStream([track]);
+  if(track.kind==='audio'){if(p.audio)p.audio.remove();const a=document.createElement('audio');a.autoplay=true;a.playsInline=true;a.srcObject=st;$('#audios').appendChild(a);p.audio=a;a.play().catch(()=>{$('#unlock').hidden=false});watchLevel(id,st)}
+  else{p.video=st;track.onended=()=>{if(p.video===st){p.video=null;refreshScreen()}};refreshScreen()}};
+ pc.onconnectionstatechange=()=>{if(pc.connectionState==='failed'){try{pc.restartIce()}catch(e){}}if(pc.connectionState==='connected')tune(pc);vbarDirty=true};
+ return p}
+function dropPeer(id){const p=V.pcs.get(id);if(!p)return;try{p.pc.close()}catch(e){}if(p.audio)p.audio.remove();V.pcs.delete(id);V.levels.delete(id);V.speaking.delete(id);V.screens.delete(id);refreshScreen();vbarDirty=true}
+socket.on('voice:peers',({channel,peers:list,screens})=>{if(channel!==V.channel)return;(screens||[]).forEach(id=>V.screens.add(id));list.forEach(makePC);vbarDirty=true});
+socket.on('voice:joined',()=>{vbarDirty=true});
+socket.on('voice:left',({id})=>dropPeer(id));
+socket.on('voice:screen',({id,on,name})=>{if(on){V.screens.add(id);toast('🖥 '+name+' يشارك شاشته')}else{V.screens.delete(id);const p=V.pcs.get(id);if(p)p.video=null}refreshScreen()});
+socket.on('voice:signal',async({from,data})=>{if(!V.channel)return;const p=makePC(from),pc=p.pc;
+ try{if(data.desc){const offer=data.desc.type==='offer';const collision=offer&&(p.making||pc.signalingState!=='stable');p.ignore=!p.polite&&collision;if(p.ignore)return;
+   await pc.setRemoteDescription(data.desc);if(offer){await pc.setLocalDescription();socket.emit('voice:signal',{to:from,data:{desc:pc.localDescription}})}}
+  else if(data.cand){try{await pc.addIceCandidate(data.cand)}catch(e){if(!p.ignore)console.warn(e)}}}catch(e){console.warn(e)}});
+$('#unlock').onclick=()=>{V.pcs.forEach(p=>p.audio&&p.audio.play().catch(()=>{}));if(V.actx)V.actx.resume();$('#unlock').hidden=true};
+function toggleMute(){V.muted=!V.muted;if(V.local)V.local.getAudioTracks().forEach(t=>t.enabled=!V.muted);vbarDirty=true;renderVbar()}
+async function startScreen(){if(!navigator.mediaDevices.getDisplayMedia)return toast('متصفحك لا يدعم مشاركة الشاشة. جرّب Chrome أو Edge على الحاسوب.');
+ try{V.screen=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:15,max:30},width:{ideal:1920},height:{ideal:1080}},audio:false})}catch(e){return}
+ const tr=V.screen.getVideoTracks()[0];tr.contentHint='detail';tr.onended=()=>stopScreen();
+ V.pcs.forEach(p=>{p.screenSender=p.pc.addTrack(tr,V.screen)});socket.emit('voice:screen',{on:true});refreshScreen();vbarDirty=true;renderVbar()}
+function stopScreen(silent){if(!V.screen)return;V.screen.getTracks().forEach(t=>t.stop());V.pcs.forEach(p=>{if(p.screenSender){try{p.pc.removeTrack(p.screenSender)}catch(e){}p.screenSender=null}});V.screen=null;if(!silent)socket.emit('voice:screen',{on:false});refreshScreen();vbarDirty=true;renderVbar()}
+let scrHidden=false,scrShown=null;
+function refreshScreen(){const vid=$('#scrVid');let src=null,title='';
+ for(const [id,p] of V.pcs)if(p.video&&V.screens.has(id)){src=p.video;const pr=peers.get(id);title='شاشة '+(pr?pr.name:'زميل');break}
+ if(!src&&V.screen){src=V.screen;title='أنت تشارك شاشتك'}
+ if(!src){hideScreen();return}
+ if(scrShown!==src){scrShown=src;vid.srcObject=src;vid.play().catch(()=>{});scrHidden=false}
+ $('#scrTitle').textContent=title;$('#screen').hidden=scrHidden}
+function hideScreen(){$('#screen').hidden=true;$('#scrVid').srcObject=null;scrShown=null;$('#screen').classList.remove('full')}
+$('#scrHide').onclick=()=>{scrHidden=true;$('#screen').hidden=true;vbarDirty=true};
+$('#scrFull').onclick=()=>{const s=$('#screen');s.classList.toggle('full');$('#scrFull').textContent=s.classList.contains('full')?'تصغير':'تكبير'};
+function renderVbar(){vbarDirty=false;const bar=$('#vbar');$('#help').hidden=!!V.channel;if(!V.channel){bar.hidden=true;return}bar.hidden=false;
+ const ppl=[{n:'أنت',sp:V.speaking.has('me'),bad:V.muted||!V.local}];
+ V.pcs.forEach((p,id)=>{const pr=peers.get(id);const st=p.pc.connectionState;ppl.push({n:(pr?pr.name:'زميل')+(st==='connected'?'':' …'),sp:V.speaking.has(id),bad:st!=='connected'})});
+ const anyScreen=[...V.pcs.entries()].some(([id,p])=>p.video&&V.screens.has(id));
+ bar.innerHTML=`<span class="ch">🎙 ${esc(chName(V.channel))}</span><span class="ppl">${ppl.map(x=>`<span class="pp ${x.sp?'sp':''} ${x.bad?'bad':''}">${esc(x.n)}${x.n==='أنت'&&V.muted?' (مكتوم)':''}</span>`).join('')}</span>
+ <button id="vMute" class="${V.muted?'on':''}">${V.muted?'🔇 تشغيل الميكروفون':'🎙 كتم'}</button>
+ <button id="vScr" class="${V.screen?'live':''}">${V.screen?'⏹ إيقاف المشاركة':'🖥 شارك شاشتي'}</button>
+ ${anyScreen&&$('#screen').hidden?'<button id="vShow">👁 أظهر الشاشة</button>':''}
+ <button id="vLeave">${V.channel.startsWith('pair:')?'📴 إنهاء المكالمة':'⏏ مغادرة الصوت'}</button>`;
+ $('#vMute').onclick=toggleMute;$('#vScr').onclick=()=>V.screen?stopScreen():startScreen();
+ const sh=$('#vShow');if(sh)sh.onclick=()=>{scrHidden=false;refreshScreen();vbarDirty=true};
+ $('#vLeave').onclick=()=>{if(V.channel.startsWith('pair:'))V.pairCall=null;else V.optOut=V.channel;V.want=null;voiceLeave()};
+}
+addEventListener('keydown',e=>{if(e.target.closest('input,select,textarea'))return;if(e.key.toLowerCase()==='m'&&V.channel)toggleMute()});
+setInterval(()=>{if(V.channel)vbarDirty=true},1500);
+
+/* ================= الملف الشخصي ================= */
+function saveProfile(){posDirty=true;socket.emit('profile:save',{name:me.name,role:me.role,look:me.look,desk:me.desk})}
+const pv=$('#prev'),pctx=pv.getContext('2d');
+function drawPrev(){const r=pv.getBoundingClientRect(),d=window.devicePixelRatio||1;pv.width=r.width*d;pv.height=r.height*d;pctx.setTransform(d*2.4,0,0,d*2.4,0,0);pctx.clearRect(0,0,999,999);if(me.look.gender)drawAvatar(pctx,r.width/4.8,r.height/4.8+12,me.look,{status:me.status})}
+function swatches(){const L=me.look;const mk=(el,list,key)=>{el.innerHTML=list.map(c=>`<button type="button" style="background:${c}" class="${L[key]===c?'on':''}" data-v="${c}" aria-label="لون"></button>`).join('');el.querySelectorAll('button').forEach(b=>b.onclick=()=>{L[key]=b.dataset.v;swatches()})};
+ mk($('#swShirt'),LOOKS.shirt,'shirt');mk($('#swHair'),LOOKS.hair,'hair');mk($('#swSkin'),LOOKS.skin,'skin');
+ $('#swGender').querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.v===L.gender);b.onclick=()=>{L.gender=b.dataset.v;if(!LOOKS.style[L.gender].some(s=>s[0]===L.style))L.style=LOOKS.style[L.gender][0][0];$('#obErr').textContent='';swatches()}});
+ const st=$('#swStyle');st.innerHTML=L.gender?LOOKS.style[L.gender].map(([v,l])=>`<button type="button" class="${L.style===v?'on':''}" data-v="${v}">${l}</button>`).join(''):'<span class="empty">اختر الجنس أولاً</span>';
+ st.querySelectorAll('button').forEach(b=>b.onclick=()=>{L.style=b.dataset.v;swatches()});drawPrev()}
+function showOnb(){$('#obName').value=me.name;$('#obRole').value=me.role;$('#onb').hidden=false;swatches();closeAll();curKey=null}
+$('#obForm').onsubmit=e=>{e.preventDefault();
+ if(!me.look.gender){$('#obErr').textContent='اختر الجنس: ذكر أو أنثى';return}
+ if(needCode){const c=$('#obCode').value.trim();if(!c){$('#obErr').textContent='أدخل رمز الدخول';return}if(!joined){LS.set('office.code',c);me.name=$('#obName').value.trim().slice(0,30);me.role=$('#obRole').value.trim().slice(0,40);if(!me.name)return;pendingSave=true;$('#obErr').textContent='جارٍ التحقق…';socket.disconnect().connect();return}}
+ const first=!me.name;me.name=$('#obName').value.trim().slice(0,30);me.role=$('#obRole').value.trim().slice(0,40);if(!me.name)return;
+ if(!joined){$('#obErr').textContent='جارٍ الاتصال بالخادم…';return}
+ $('#onb').hidden=true;saveProfile();sendPos(true);
+ if(first){toast('أهلاً '+me.name+'! المكاتب الفارغة محاطة بإطار بنفسجي، امشِ إلى أحدها واحجزه.');guide={...PLACES.reception,until:Date.now()+8000}}};
+$('#meBtn').onclick=showOnb;
+$('#status').onchange=e=>{me.status=e.target.value;posDirty=true;sendPos(true)};
+
+/* ================= الإقلاع ================= */
+resize();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

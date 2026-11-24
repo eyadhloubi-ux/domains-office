@@ -1,0 +1,17 @@
+{
+  "name": "domains-virtual-office",
+  "version": "2.0.0",
+  "description": "مكتب DOMAINS الافتراضي — حضور مباشر، صوت ومشاركة شاشة، لوحات تخطيط مشترك",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --env-file=.env server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}
