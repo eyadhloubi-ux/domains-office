@@ -339,10 +339,9 @@ function frame(now){
  voiceTick();
  // الكاميرا: مقرّبة تتبع الشخصية، وتقترب أكثر عند التوقف عند مكتب أو زميل
  const panelOpen=!panel.classList.contains('hide')&&$('#board').hidden&&$('#dash').hidden;
- const padT=(panelOpen&&vw>700)?394:0;pad+=(padT-pad)*ease(dt,9);if(Math.abs(padT-pad)<.5)pad=padT;
- const near=curTarget&&curTarget.at&&['person','free','mine','reception','elevator','hr','fin','admin'].includes(curTarget.type);
- focusZ+=((near?.22:0)-focusZ)*ease(dt,4);
- const ts=overview?fitS():clamp(Math.max(fitS(),zoomU*(1+focusZ)),.5,3);
+ // حجم الخريطة ثابت دائماً: اللوحات والمحادثات تظهر فوقها ولا تغيّر حجمها أو موضعها
+ pad=0;const near=false;
+ const ts=overview?fitS():clamp(Math.max(fitS(),zoomU),.5,3);
  scale=cam.init?scale+(ts-scale)*ease(dt,6):ts;
  const viewW=(vw-pad)/scale,viewH=vh/scale;
  const fx=near?(me.x*.6+curTarget.at.x*.4):me.x,fy=near?(me.y*.6+curTarget.at.y*.4):me.y;
